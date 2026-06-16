@@ -8,6 +8,13 @@ The primary goal is fun gameplay.
 
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
+Playtesting suggests:
+- Player-controlled movement is preferred over automatic forward scrolling.
+- The player should be free to move both left and right.
+- Threats approaching from multiple directions create more interesting gameplay.
+- Responsive controls are more important than additional mechanics at this stage.
+- Improving the feel of movement and combat is preferred over adding new systems.
+
 Optimize for:
 - fun moment-to-moment gameplay
 - clear player feedback
@@ -37,16 +44,3 @@ Current Dislikes
 - Long turns
 - Excessive menus
 - Excessive setup before gameplay begins
-
-Questions
-- Is the gameplay fun?
-- Is combat satisfying?
-- Does the player understand what to do?
-- Is there enough tension?
-- What makes the player want another run?
-
-Current Unknowns
-- What is the core gameplay loop?
-- What creates tension?
-- What makes combat satisfying?
-- What creates replayability?
