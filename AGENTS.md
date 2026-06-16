@@ -10,11 +10,12 @@ The Director evaluates competing mutations and selects which ones become part of
 
 The goal is not to maximize features.
 
-The goal is to evolve a game that becomes more interesting to play over time.
+The goal is to evolve a game that becomes more fun to play.
 
 Before making changes, review:
 
 - README.md
+- AGENTS.md
 - DIRECTOR.md
 - PROJECT_MAP.md
 - EVOLUTION_LOG.md
@@ -27,17 +28,18 @@ Understand the current state of the game before proposing a mutation.
 
 ## Project Purpose
 
-This project is building a browser-based systems game inspired by economic simulations, strategy games, and emergent systems.
+This project is building a browser-based space combat game.
 
-The exact game is not fully known.
+The exact mechanics are not fully known.
 
-The direction is known.
+The gameplay will evolve through mutation, evaluation, and selection.
 
 Agents should evolve the game toward:
 
-- Interesting decisions
+- Fun moment-to-moment gameplay
 - Clear player feedback
-- Emergent interactions
+- Satisfying combat
+- Interesting decisions
 - Simplicity
 - Playability
 
@@ -47,6 +49,7 @@ Agents should avoid:
 - Large rewrites
 - Feature accumulation without purpose
 - Mechanics that make the game harder to understand
+- Mechanics that add complexity without improving gameplay
 
 ## Director Guidance
 
@@ -72,17 +75,18 @@ Agents are encouraged to explore multiple possible solutions.
 
 A strong mutation does one or more of the following:
 
-- Creates a more interesting decision
+- Makes the game more fun
+- Improves combat
+- Improves responsiveness
 - Improves game clarity
-- Increases meaningful player choice
-- Strengthens interactions between existing systems
+- Improves player feedback
 - Simplifies a confusing mechanic
 - Makes the game easier to evaluate
 
 A weak mutation:
 
 - Adds complexity without improving gameplay
-- Introduces systems disconnected from existing mechanics
+- Introduces systems disconnected from the current gameplay loop
 - Prioritizes technical novelty over player experience
 - Solves a problem the player does not have
 
@@ -94,11 +98,11 @@ A generation should usually focus on one idea.
 
 Examples:
 
-- Add terrain effects
-- Improve production balance
-- Introduce resource scarcity
+- Improve ship controls
+- Improve shooting feedback
+- Add a simple enemy type
 - Improve visual feedback
-- Add a simple trading mechanic
+- Introduce a new combat mechanic
 
 Avoid implementing multiple major systems in a single generation.
 
@@ -178,7 +182,9 @@ Multiple candidate branches for the same generation are encouraged.
 
 Competing ideas are a core part of the experiment.
 
-Agents should commit their changes and push their branch to the repository.
+Agents should commit their changes.
+
+Branches should remain available for review and selection.
 
 Agents must not:
 
@@ -237,9 +243,9 @@ The Director may:
 
 The Director should focus on:
 
-- Interesting decisions
+- Fun gameplay
 - Player experience
-- Emergent behavior
+- Combat satisfaction
 - Clarity
 - Long-term game potential
 
@@ -270,4 +276,3 @@ Use it to understand the current structure of the project before exploring the s
 If your contribution significantly changes the architecture, major systems, data flow, or project organization, update `PROJECT_MAP.md` as part of the same mutation.
 
 Keep the document concise and focused on the current state of the project.
-
