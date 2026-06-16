@@ -19,6 +19,8 @@ Current Likes
 - resource scarcity
 - terrain differences
 - visible production chains
+- spatial representation of the game world
+- visually understandable systems
 
 Current Dislikes
 - micromanagement
