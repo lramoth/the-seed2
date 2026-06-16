@@ -18,3 +18,9 @@ build/
 # Temporary files
 *.tmp
 *.swp
+
+# AI Agent Workspaces
+.claude/
+.cursor/
+.codex/
+.ai/

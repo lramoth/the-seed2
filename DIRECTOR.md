@@ -24,6 +24,7 @@ Avoid:
 
 Current Likes
 - Space combat
+- Side-scrolling presentation
 - Responsive controls
 - Clear visual feedback
 - Spatial representation of the game world
