@@ -7,7 +7,12 @@ Please clone and review the repository.
 
 If the repository already exists locally, use the existing checkout instead. Before making changes, switch to `main`, fetch/pull the latest `origin/main`, and make sure your work starts from the current accepted lineage.
 
-Read README.md, AGENTS.md, DIRECTOR.md and EVOLUTION_LOG.md.
+Read the repository documents in the following order:
+
+1. README.md
+2. AGENTS.md
+3. DIRECTOR.md
+4. EVOLUTION_LOG.md
 
 Act according to the instructions you find there.
 
@@ -15,7 +20,7 @@ Create the next generation of the project.
 
 Do not assume the generation number. Determine the next generation number from EVOLUTION_LOG.md and the current main branch.
 
-You may choose the direction of your contribution.
+Prefer gameplay improvements over infrastructure improvements unless infrastructure is required to support gameplay evolution.
 
 Keep your contribution small, coherent, and reviewable.
 
