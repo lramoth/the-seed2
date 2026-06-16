@@ -1,12 +1,15 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 1
- * A side-scrolling space combat core loop.
+ * The Seed 2 — Generation 2
+ * A free-flight space combat core loop.
  *
- * The world scrolls right-to-left. The player holds the left side of the
- * screen, dodges and destroys incoming enemy ships, and survives as long as
- * possible while the pressure ramps up. Score is the reason to play again.
+ * The player pilots a ship freely across the field, facing whichever way they
+ * fly and firing in that direction. Enemy ships close in from BOTH edges, so
+ * the fight is a two-front problem: pick a side, clear it, and pivot before
+ * anything slips past. The world only moves when the player moves — a parallax
+ * starfield and rolling ground terrain make that self-directed flight legible.
+ * Survive as the pressure ramps up. Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -17,6 +20,12 @@
 const CFG = {
   width: 960,
   height: 540,
+
+  // The bottom band is distant ground terrain — a spatial reference, not a
+  // collision surface. The player and enemies fly in the sky above it.
+  world: {
+    groundHeight: 70,
+  },
 
   player: {
     w: 46,
@@ -37,7 +46,7 @@ const CFG = {
     h: 28,
     minSpeed: 130,
     maxSpeed: 230,
-    breachDamage: 12, // hull lost when an enemy escapes past the left edge
+    breachDamage: 12, // hull lost when an enemy slips past either edge
     collideDamage: 34, // hull lost when an enemy rams the player
     score: 100,
   },
@@ -71,6 +80,16 @@ function lerp(a, b, t) {
 
 function randRange(lo, hi) {
   return lo + Math.random() * (hi - lo);
+}
+
+// A ship has fully left the playfield through either the left or right edge.
+function offscreenX(rect, width) {
+  return rect.x + rect.w < 0 || rect.x > width;
+}
+
+// Bottom of the flyable sky — everything below this is ground terrain.
+function playBottom() {
+  return CFG.height - CFG.world.groundHeight;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,11 +143,14 @@ function newState() {
     best: state ? state.best : 0,
     shake: 0,
     spawnTimer: 0,
+    scrollDX: 0, // player's horizontal travel this frame, drives parallax
+    groundScroll: 0, // accumulated ground-terrain offset
     player: {
-      x: 90,
+      x: CFG.width / 2 - CFG.player.w / 2,
       y: CFG.height / 2 - CFG.player.h / 2,
       w: CFG.player.w,
       h: CFG.player.h,
+      facing: 1, // +1 faces/fires right, -1 faces/fires left
       cooldown: 0,
       hull: CFG.player.maxHull,
       flash: 0, // brief hit flash timer
@@ -143,18 +165,19 @@ function newState() {
 
 function makeStars() {
   const stars = [];
-  // Three parallax layers convey forward motion in the side-scrolling view.
+  // Three depth layers. Nearer layers (higher parallax) slide faster as the
+  // player flies, selling self-directed motion instead of an automatic scroll.
   const layers = [
-    { count: 40, speed: 22, size: 1, alpha: 0.35 },
-    { count: 30, speed: 55, size: 1.5, alpha: 0.55 },
-    { count: 18, speed: 110, size: 2, alpha: 0.85 },
+    { count: 40, parallax: 0.2, size: 1, alpha: 0.35 },
+    { count: 30, parallax: 0.5, size: 1.5, alpha: 0.55 },
+    { count: 18, parallax: 1.0, size: 2, alpha: 0.85 },
   ];
   for (const layer of layers) {
     for (let i = 0; i < layer.count; i++) {
       stars.push({
         x: Math.random() * CFG.width,
         y: Math.random() * CFG.height,
-        speed: layer.speed,
+        parallax: layer.parallax,
         size: layer.size,
         alpha: layer.alpha,
       });
@@ -181,11 +204,14 @@ function currentSpawnInterval() {
 function spawnEnemy() {
   const speedRamp = clamp(state.time / CFG.spawn.rampSeconds, 0, 1);
   const maxSpeed = lerp(CFG.enemy.maxSpeed, CFG.enemy.maxSpeed + 90, speedRamp);
+  // Threats close in from either edge. dir is the direction they travel.
+  const fromLeft = Math.random() < 0.5;
   state.enemies.push({
-    x: CFG.width + CFG.enemy.w,
-    y: randRange(20, CFG.height - CFG.enemy.h - 20),
+    x: fromLeft ? -CFG.enemy.w : CFG.width + CFG.enemy.w,
+    y: randRange(20, playBottom() - CFG.enemy.h - 20),
     w: CFG.enemy.w,
     h: CFG.enemy.h,
+    dir: fromLeft ? 1 : -1,
     speed: randRange(CFG.enemy.minSpeed, maxSpeed),
     // Gentle vertical drift makes enemies feel alive and harder to line up.
     drift: randRange(-40, 40),
@@ -220,24 +246,27 @@ function update(dt) {
   state.time += dt;
   if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 60);
 
+  state.scrollDX = 0; // set by updatePlayer; stays 0 when not flying
+  if (state.phase === "playing") {
+    updatePlayer(dt);
+    updateSpawning(dt);
+    updateBullets(dt);
+    updateEnemies(dt);
+  }
+
+  // The world only moves because the player moved through it.
+  state.groundScroll += state.scrollDX * 0.6;
   updateStars(dt);
   updateParticles(dt);
-
-  if (state.phase !== "playing") return;
-
-  updatePlayer(dt);
-  updateSpawning(dt);
-  updateBullets(dt);
-  updateEnemies(dt);
 }
 
 function updateStars(dt) {
+  // Stars slide opposite the player's travel, faster for nearer layers, and
+  // wrap around either edge so the field is seamless in both directions.
   for (const s of state.stars) {
-    s.x -= s.speed * dt;
-    if (s.x < 0) {
-      s.x = CFG.width;
-      s.y = Math.random() * CFG.height;
-    }
+    s.x -= state.scrollDX * s.parallax;
+    if (s.x < 0) s.x += CFG.width;
+    else if (s.x > CFG.width) s.x -= CFG.width;
   }
 }
 
@@ -262,6 +291,10 @@ function updatePlayer(dt) {
   if (isDown("ArrowUp", "KeyW")) dy -= 1;
   if (isDown("ArrowDown", "KeyS")) dy += 1;
 
+  // Face the direction of horizontal travel; this is also the aim direction.
+  if (dx < 0) p.facing = -1;
+  else if (dx > 0) p.facing = 1;
+
   // Normalize diagonal movement so it isn't faster than cardinal movement.
   if (dx !== 0 && dy !== 0) {
     const inv = 1 / Math.sqrt(2);
@@ -269,8 +302,11 @@ function updatePlayer(dt) {
     dy *= inv;
   }
 
-  p.x = clamp(p.x + dx * CFG.player.speed * dt, 0, CFG.width * 0.6 - p.w);
-  p.y = clamp(p.y + dy * CFG.player.speed * dt, 0, CFG.height - p.h);
+  // Free roaming across the whole field, but stay in the sky above the ground.
+  const prevX = p.x;
+  p.x = clamp(p.x + dx * CFG.player.speed * dt, 0, CFG.width - p.w);
+  p.y = clamp(p.y + dy * CFG.player.speed * dt, 0, playBottom() - p.h);
+  state.scrollDX = p.x - prevX; // how far we actually flew this frame
 
   if (p.cooldown > 0) p.cooldown -= dt;
   if (p.flash > 0) p.flash -= dt;
@@ -284,11 +320,14 @@ function updatePlayer(dt) {
 
 function fire() {
   const p = state.player;
+  // Bullet leaves the nose and travels in the facing direction.
+  const nose = p.facing === 1 ? p.x + p.w : p.x - CFG.bullet.w;
   state.bullets.push({
-    x: p.x + p.w,
+    x: nose,
     y: p.y + p.h / 2 - CFG.bullet.h / 2,
     w: CFG.bullet.w,
     h: CFG.bullet.h,
+    vx: CFG.bullet.speed * p.facing,
   });
   p.muzzle = 0.06;
 }
@@ -304,8 +343,8 @@ function updateSpawning(dt) {
 function updateBullets(dt) {
   for (let i = state.bullets.length - 1; i >= 0; i--) {
     const b = state.bullets[i];
-    b.x += CFG.bullet.speed * dt;
-    if (b.x > CFG.width) state.bullets.splice(i, 1);
+    b.x += b.vx * dt;
+    if (offscreenX(b, CFG.width)) state.bullets.splice(i, 1);
   }
 }
 
@@ -313,12 +352,12 @@ function updateEnemies(dt) {
   const p = state.player;
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const e = state.enemies[i];
-    e.x -= e.speed * dt;
+    e.x += e.dir * e.speed * dt;
     e.phase += dt * 3;
-    e.y = clamp(e.y + Math.sin(e.phase) * e.drift * dt, 0, CFG.height - e.h);
+    e.y = clamp(e.y + Math.sin(e.phase) * e.drift * dt, 0, playBottom() - e.h);
 
-    // Enemy escaped past the player — a breach.
-    if (e.x + e.w < 0) {
+    // Enemy slipped past either edge — a breach.
+    if (offscreenX(e, CFG.width)) {
       state.enemies.splice(i, 1);
       damagePlayer(CFG.enemy.breachDamage, false);
       continue;
@@ -387,6 +426,7 @@ function render() {
   }
 
   drawStars();
+  drawGround();
   drawParticles();
 
   if (state.phase !== "ready") {
@@ -411,6 +451,36 @@ function drawStars() {
   ctx.globalAlpha = 1;
 }
 
+// Distant rolling terrain along the bottom. Two layered sine waves give a
+// seamless ridge that slides with the player, anchoring left/right navigation.
+function drawGround() {
+  const top = playBottom();
+  const off = state.groundScroll;
+  ctx.fillStyle = "#0a1226";
+  ctx.beginPath();
+  ctx.moveTo(0, CFG.height);
+  for (let x = 0; x <= CFG.width; x += 8) {
+    const w = x + off;
+    const y = top + Math.sin(w * 0.012) * 10 + Math.sin(w * 0.031) * 6;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(CFG.width, CFG.height);
+  ctx.closePath();
+  ctx.fill();
+
+  // A faint glowing ridge line picks out the horizon.
+  ctx.strokeStyle = "rgba(54, 215, 255, 0.16)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= CFG.width; x += 8) {
+    const w = x + off;
+    const y = top + Math.sin(w * 0.012) * 10 + Math.sin(w * 0.031) * 6;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
 function drawParticles() {
   for (const p of state.particles) {
     ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
@@ -432,17 +502,23 @@ function drawBullets() {
 
 function drawPlayer() {
   const p = state.player;
-  const cx = p.x;
-  const cy = p.y;
+  const hw = p.w / 2;
+  const hh = p.h / 2;
+
+  // Draw in a local frame centered on the ship, mirrored to face its heading,
+  // so the nose, thruster, and muzzle all point the way the player is flying.
+  ctx.save();
+  ctx.translate(p.x + hw, p.y + hh);
+  ctx.scale(p.facing, 1);
 
   // Thruster flame flickers behind the ship.
   const flame = randRange(10, 22);
   ctx.fillStyle = "#36d7ff";
   ctx.globalAlpha = 0.85;
   ctx.beginPath();
-  ctx.moveTo(cx, cy + p.h * 0.3);
-  ctx.lineTo(cx - flame, cy + p.h / 2);
-  ctx.lineTo(cx, cy + p.h * 0.7);
+  ctx.moveTo(-hw, -hh * 0.4);
+  ctx.lineTo(-hw - flame, 0);
+  ctx.lineTo(-hw, hh * 0.4);
   ctx.closePath();
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -450,43 +526,51 @@ function drawPlayer() {
   // Hull — white flash briefly when hit.
   ctx.fillStyle = p.flash > 0 ? "#ffffff" : "#dfe9ff";
   ctx.beginPath();
-  ctx.moveTo(cx + p.w, cy + p.h / 2); // nose
-  ctx.lineTo(cx, cy);
-  ctx.lineTo(cx + p.w * 0.25, cy + p.h / 2);
-  ctx.lineTo(cx, cy + p.h);
+  ctx.moveTo(hw, 0); // nose
+  ctx.lineTo(-hw, -hh);
+  ctx.lineTo(-hw * 0.5, 0);
+  ctx.lineTo(-hw, hh);
   ctx.closePath();
   ctx.fill();
 
   // Cockpit accent.
   ctx.fillStyle = p.flash > 0 ? "#ffffff" : "#36d7ff";
-  ctx.fillRect(cx + p.w * 0.45, cy + p.h * 0.38, 6, p.h * 0.24);
+  ctx.fillRect(-p.w * 0.05, -hh * 0.24, 6, hh * 0.48);
 
   // Muzzle flash.
   if (p.muzzle > 0) {
     ctx.fillStyle = "#fff27a";
     ctx.globalAlpha = 0.9;
     ctx.beginPath();
-    ctx.arc(cx + p.w + 4, cy + p.h / 2, 6, 0, Math.PI * 2);
+    ctx.arc(hw + 4, 0, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+
+  ctx.restore();
 }
 
 function drawEnemies() {
   for (const e of state.enemies) {
-    const cx = e.x;
-    const cy = e.y;
+    const hw = e.w / 2;
+    const hh = e.h / 2;
+    ctx.save();
+    ctx.translate(e.x + hw, e.y + hh);
+    ctx.scale(-e.dir, 1); // nose leads in the travel direction
+
     ctx.fillStyle = "#ff6b6b";
     ctx.beginPath();
-    ctx.moveTo(cx, cy + e.h / 2); // nose points left, toward the player
-    ctx.lineTo(cx + e.w, cy);
-    ctx.lineTo(cx + e.w * 0.75, cy + e.h / 2);
-    ctx.lineTo(cx + e.w, cy + e.h);
+    ctx.moveTo(-hw, 0); // nose
+    ctx.lineTo(hw, -hh);
+    ctx.lineTo(hw * 0.5, 0);
+    ctx.lineTo(hw, hh);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = "#ffb3b3";
-    ctx.fillRect(cx + e.w * 0.45, cy + e.h * 0.4, 5, e.h * 0.2);
+    ctx.fillRect(-e.w * 0.05, -e.h * 0.1, 5, e.h * 0.2);
+
+    ctx.restore();
   }
 }
 
@@ -534,8 +618,8 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Destroy incoming ships. Don't let them through.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
-    { text: "Move WASD / Arrows   ·   Fire SPACE", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
+    { text: "Enemies close from both sides. Face them and fire.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Fly WASD / Arrows   ·   Fire SPACE   ·   You face where you fly", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);
 }
@@ -573,5 +657,5 @@ requestAnimationFrame((t) => {
 
 // Expose pure helpers for potential future tests without affecting gameplay.
 if (typeof window !== "undefined") {
-  window.__seed = { clamp, rectsOverlap, lerp };
+  window.__seed = { clamp, rectsOverlap, lerp, offscreenX };
 }

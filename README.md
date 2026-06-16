@@ -118,21 +118,24 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 1
+Generation 2
 
-A playable side-scrolling space combat core loop.
+A playable free-flight space combat core loop.
 
 ### The Game
 
-The world scrolls right-to-left. You hold the left side of the screen, dodge and
-destroy incoming enemy ships, and survive as the pressure ramps up. Let an enemy
-slip past or ram you and your hull takes damage. At zero hull the run ends.
-Score is the reason to play again.
+You pilot a ship freely across the field. The ship faces whichever way you fly
+and fires in that direction, so combat is about which way you point. Enemy ships
+close in from *both* edges at once, making each run a two-front problem: pick a
+side, clear it, and pivot before anything slips past. Let an enemy slip off
+either edge or ram you and your hull takes damage. At zero hull the run ends.
+The world only moves as you move through it — a parallax starfield and rolling
+ground terrain mark your heading. Score is the reason to play again.
 
 ### Controls
 
-- Move: WASD or Arrow Keys
-- Fire: Space
+- Fly: WASD or Arrow Keys (the ship faces the direction you fly)
+- Fire: Space (fires the way you are facing)
 - Launch / Restart: Space (start), R (after a run ends)
 
 ### How to Run
