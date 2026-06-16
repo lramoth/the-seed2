@@ -118,24 +118,28 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 2
+Generation 3
 
-A playable free-flight space combat core loop.
+A playable free-flight space combat core loop with enemy-seeking missiles.
 
 ### The Game
 
-You pilot a ship freely across the field. The ship faces whichever way you fly
-and fires in that direction, so combat is about which way you point. Enemy ships
-close in from *both* edges at once, making each run a two-front problem: pick a
-side, clear it, and pivot before anything slips past. Let an enemy slip off
-either edge or ram you and your hull takes damage. At zero hull the run ends.
-The world only moves as you move through it — a parallax starfield and rolling
-ground terrain mark your heading. Score is the reason to play again.
+You pilot a ship freely across the field. The ship faces whichever way you fly,
+and firing launches *enemy-seeking missiles* along that heading — each curves
+toward the nearest enemy ahead of it. A missile can only lock onto targets in
+front of it and can't whip around, so *which way you face still decides which
+front you defend*; the homing just forgives an enemy's vertical drift instead of
+punishing a near miss. Enemy ships close in from *both* edges at once, making
+each run a two-front problem: pick a side, clear it, and pivot before anything
+slips past. Let an enemy slip off either edge or ram you and your hull takes
+damage. At zero hull the run ends. The world only moves as you move through it —
+a parallax starfield and rolling ground terrain mark your heading. Score is the
+reason to play again.
 
 ### Controls
 
 - Fly: WASD or Arrow Keys (the ship faces the direction you fly)
-- Fire: Space (fires the way you are facing)
+- Fire: Space (launches seeking missiles in the direction you are facing)
 - Launch / Restart: Space (start), R (after a run ends)
 
 ### How to Run

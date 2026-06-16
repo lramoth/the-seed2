@@ -162,3 +162,82 @@ Future Work Enabled:
 - Enemies that shoot back or telegraph attacks, rewarding correct facing
 - Weapon variety and pickups for meaningful choices
 - Tuning the two-front spawn rate and pacing via `CFG`
+
+## Generation 3
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-3-1781653195)
+
+Intent:
+Give the player the weapon DIRECTOR.md asks for — "enemy seeking missiles" —
+without softening the decision that makes Generation 2 work. Gen 2's core
+moment is "which front do I face?": you can only fire one way at a time, so each
+run is about reading both edges and pivoting to the more urgent threat. Straight
+bullets made that decision *and* demanded pixel-perfect vertical alignment
+against enemies that drift, so clean shots often whiffed. The highest-value
+mutation is to keep the facing decision and remove the busywork.
+
+Mutation:
+Replaced straight bullets with homing missiles — one coherent idea, no new
+external subsystems:
+
+- Missiles carry a heading `angle` instead of a fixed `vx`. Each frame a missile
+  finds the nearest enemy *ahead of its current heading* (`nearestSeekTarget`,
+  forward-hemisphere only) and rotates toward it at a capped turn rate
+  (`CFG.missile.turnRate`) via the new pure helpers `angleDelta` / `steerAngle`,
+  then advances along that heading.
+- The forward-only lock plus the capped turn rate are deliberate: a missile
+  fired right cannot wheel around onto a threat behind it, so facing still
+  decides which front you can actually hit. The homing only forgives an enemy's
+  *vertical* drift, not the player's *horizontal* choice.
+- Missiles retire on a short lifetime (`CFG.missile.life`) or by leaving any edge
+  (new all-four-edges `offscreen` helper, since a curving missile can exit top or
+  bottom — enemies still use the left/right-only `offscreenX`).
+- Rendering: missiles are drawn as a glowing dart rotated to their heading with a
+  trailing exhaust plume, so their curve reads clearly.
+- `bullet`/`bullets` renamed to `missile`/`missiles` throughout so the code's
+  names match the behavior. Ready-screen copy and README/PROJECT_MAP updated.
+  Enemy fire, plasma-orb visuals, momentum, powerups, and audio were left for
+  separate generations to keep this a single idea.
+
+Rationale:
+This implements a named Director request while *reinforcing* the accepted
+lineage instead of fighting it. Combat feels more satisfying — a missile curving
+into a drifting orb is its own reward — and the "satisfying combat" /
+"responsiveness" pressures are served without auto-aim trivializing the game:
+wrong-facing still lets enemies breach, and the lower missile speed lets far
+crossers escape. It is deliberately one mechanic, all tunable from `CFG`.
+
+Tests / Verification:
+- New pure helpers exposed on `window.__seed` and asserted in-browser:
+  `offscreen` (all four edges true, interior false), `angleDelta` (small and
+  PI-wrapping cases), `steerAngle` (caps a large step to ±maxStep, snaps when
+  within range) — all passed.
+- Deterministic synchronous simulation (single eval, so the live rAF loop could
+  not interleave): firing right launched exactly one missile at angle 0; against
+  an enemy 95px above the launch line the missile curved up and destroyed it
+  (score +100); firing right at an enemy positioned behind-left scored 0 and the
+  missile flew off the right edge — confirming facing is preserved.
+- Live run with autofire and staggered enemies: missiles fired continuously,
+  homed, and scored (observed SCORE 000600) with no console errors. Screenshot
+  captured missiles in flight leaving the player's nose.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Establishes the player's weapon identity as a guided missile and proves homing
+can coexist with — and sharpen — the two-front facing decision. The angle-based
+missile and the `angleDelta`/`steerAngle` helpers are reusable substrate for
+future steering behavior (enemy missiles, telegraphed attacks, alternate
+weapons).
+
+Future Work Enabled:
+- Enemies that shoot back (now that a steering primitive exists for projectiles)
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Power-ups (e.g. multi-missile salvos) and a powerup duration bar
+- Movement feel: edge buffer and momentum
+- Audio (blaster, kills, thrusters, game-over, music)
+- Tuning missile turn rate / speed / fire rate against spawn pacing via `CFG`

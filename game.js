@@ -1,15 +1,20 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 2
- * A free-flight space combat core loop.
+ * The Seed 2 — Generation 3
+ * A free-flight space combat core loop with enemy-seeking missiles.
  *
  * The player pilots a ship freely across the field, facing whichever way they
- * fly and firing in that direction. Enemy ships close in from BOTH edges, so
- * the fight is a two-front problem: pick a side, clear it, and pivot before
- * anything slips past. The world only moves when the player moves — a parallax
- * starfield and rolling ground terrain make that self-directed flight legible.
- * Survive as the pressure ramps up. Score is the reason to play again.
+ * fly and firing in that direction. Shots are now homing missiles: they launch
+ * along the way you face and curve toward the nearest enemy *ahead* of them.
+ * Their turn rate is limited and they only seek targets in front, so facing
+ * still decides which front you defend — the missiles just forgive an enemy's
+ * vertical drift instead of punishing a near miss. Enemy ships close in from
+ * BOTH edges, so the fight stays a two-front problem: pick a side, clear it,
+ * and pivot before anything slips past. The world only moves when the player
+ * moves — a parallax starfield and rolling ground terrain make that
+ * self-directed flight legible. Survive as the pressure ramps up. Score is the
+ * reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -35,10 +40,13 @@ const CFG = {
     maxHull: 100,
   },
 
-  bullet: {
-    w: 14,
-    h: 4,
-    speed: 760,
+  missile: {
+    w: 16,
+    h: 6,
+    speed: 640, // px/sec — a touch slower than a straight shot; it makes up for
+    // it by steering, and the lower speed lets far crossers still escape.
+    turnRate: Math.PI * 1.15, // radians/sec the missile can rotate toward a target
+    life: 2.4, // seconds before a missile that found no target burns out
   },
 
   enemy: {
@@ -85,6 +93,35 @@ function randRange(lo, hi) {
 // A ship has fully left the playfield through either the left or right edge.
 function offscreenX(rect, width) {
   return rect.x + rect.w < 0 || rect.x > width;
+}
+
+// A rect has fully left the playfield through any of the four edges. Missiles
+// can curve off the top or bottom, so they need the full test, not just X.
+function offscreen(rect, width, height) {
+  return (
+    rect.x + rect.w < 0 ||
+    rect.x > width ||
+    rect.y + rect.h < 0 ||
+    rect.y > height
+  );
+}
+
+// Smallest signed rotation (radians, in [-PI, PI]) to turn from angle a to b.
+function angleDelta(a, b) {
+  let d = (b - a) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+// Rotate `current` toward `target` by at most `maxStep` radians. This is what
+// caps a missile's turn rate so it cannot instantly reverse onto a target
+// behind it — facing still decides which front the player can hit.
+function steerAngle(current, target, maxStep) {
+  const d = angleDelta(current, target);
+  if (d > maxStep) return current + maxStep;
+  if (d < -maxStep) return current - maxStep;
+  return target;
 }
 
 // Bottom of the flyable sky — everything below this is ground terrain.
@@ -156,7 +193,7 @@ function newState() {
       flash: 0, // brief hit flash timer
       muzzle: 0, // muzzle flash timer
     },
-    bullets: [],
+    missiles: [],
     enemies: [],
     particles: [],
     stars: makeStars(),
@@ -250,7 +287,7 @@ function update(dt) {
   if (state.phase === "playing") {
     updatePlayer(dt);
     updateSpawning(dt);
-    updateBullets(dt);
+    updateMissiles(dt);
     updateEnemies(dt);
   }
 
@@ -320,14 +357,18 @@ function updatePlayer(dt) {
 
 function fire() {
   const p = state.player;
-  // Bullet leaves the nose and travels in the facing direction.
-  const nose = p.facing === 1 ? p.x + p.w : p.x - CFG.bullet.w;
-  state.bullets.push({
+  // The missile leaves the nose along the facing direction. Its heading is an
+  // angle so it can steer afterward; 0 points right, PI points left.
+  const angle = p.facing === 1 ? 0 : Math.PI;
+  const nose = p.facing === 1 ? p.x + p.w : p.x - CFG.missile.w;
+  state.missiles.push({
     x: nose,
-    y: p.y + p.h / 2 - CFG.bullet.h / 2,
-    w: CFG.bullet.w,
-    h: CFG.bullet.h,
-    vx: CFG.bullet.speed * p.facing,
+    y: p.y + p.h / 2 - CFG.missile.h / 2,
+    w: CFG.missile.w,
+    h: CFG.missile.h,
+    angle,
+    speed: CFG.missile.speed,
+    life: CFG.missile.life,
   });
   p.muzzle = 0.06;
 }
@@ -340,11 +381,52 @@ function updateSpawning(dt) {
   }
 }
 
-function updateBullets(dt) {
-  for (let i = state.bullets.length - 1; i >= 0; i--) {
-    const b = state.bullets[i];
-    b.x += b.vx * dt;
-    if (offscreenX(b, CFG.width)) state.bullets.splice(i, 1);
+// The nearest enemy that lies ahead of the missile's current heading. The
+// forward-only test is what keeps facing meaningful: a missile cannot lock onto
+// a target behind it, so a shot fired right will never wheel around to a threat
+// on the left. It only forgives where the enemy has drifted, not which way you
+// chose to face.
+function nearestSeekTarget(m) {
+  const mx = m.x + m.w / 2;
+  const my = m.y + m.h / 2;
+  const hx = Math.cos(m.angle);
+  const hy = Math.sin(m.angle);
+  let best = null;
+  let bestDist = Infinity;
+  for (const e of state.enemies) {
+    const rx = e.x + e.w / 2 - mx;
+    const ry = e.y + e.h / 2 - my;
+    if (rx * hx + ry * hy <= 0) continue; // behind the missile — ignore
+    const d = rx * rx + ry * ry;
+    if (d < bestDist) {
+      bestDist = d;
+      best = e;
+    }
+  }
+  return best;
+}
+
+function updateMissiles(dt) {
+  for (let i = state.missiles.length - 1; i >= 0; i--) {
+    const m = state.missiles[i];
+    m.life -= dt;
+
+    // Steer toward the nearest enemy ahead, capped by the turn rate.
+    const target = nearestSeekTarget(m);
+    if (target) {
+      const desired = Math.atan2(
+        target.y + target.h / 2 - (m.y + m.h / 2),
+        target.x + target.w / 2 - (m.x + m.w / 2)
+      );
+      m.angle = steerAngle(m.angle, desired, CFG.missile.turnRate * dt);
+    }
+
+    m.x += Math.cos(m.angle) * m.speed * dt;
+    m.y += Math.sin(m.angle) * m.speed * dt;
+
+    if (m.life <= 0 || offscreen(m, CFG.width, CFG.height)) {
+      state.missiles.splice(i, 1);
+    }
   }
 }
 
@@ -371,11 +453,11 @@ function updateEnemies(dt) {
       continue;
     }
 
-    // Bullet hits enemy.
+    // Missile hits enemy.
     let hit = false;
-    for (let j = state.bullets.length - 1; j >= 0; j--) {
-      if (rectsOverlap(state.bullets[j], e)) {
-        state.bullets.splice(j, 1);
+    for (let j = state.missiles.length - 1; j >= 0; j--) {
+      if (rectsOverlap(state.missiles[j], e)) {
+        state.missiles.splice(j, 1);
         hit = true;
         break;
       }
@@ -430,7 +512,7 @@ function render() {
   drawParticles();
 
   if (state.phase !== "ready") {
-    drawBullets();
+    drawMissiles();
     drawEnemies();
     if (state.phase === "playing") drawPlayer();
   }
@@ -490,14 +572,35 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-function drawBullets() {
-  ctx.fillStyle = "#fff27a";
-  ctx.shadowColor = "#ffd23c";
-  ctx.shadowBlur = 8;
-  for (const b of state.bullets) {
-    ctx.fillRect(b.x, b.y, b.w, b.h);
+function drawMissiles() {
+  for (const m of state.missiles) {
+    ctx.save();
+    ctx.translate(m.x + m.w / 2, m.y + m.h / 2);
+    ctx.rotate(m.angle); // body and exhaust point the way the missile flies
+
+    // Exhaust plume trailing behind the nose sells motion and heading.
+    ctx.fillStyle = "rgba(255, 150, 60, 0.55)";
+    ctx.beginPath();
+    ctx.moveTo(-m.w * 1.6, 0);
+    ctx.lineTo(-m.w * 0.5, -m.h * 0.5);
+    ctx.lineTo(-m.w * 0.5, m.h * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing missile body — a pointed dart aimed along its heading.
+    ctx.fillStyle = "#fff27a";
+    ctx.shadowColor = "#ffae3c";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(m.w / 2, 0); // nose
+    ctx.lineTo(-m.w / 2, -m.h / 2);
+    ctx.lineTo(-m.w / 2, m.h / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
   }
-  ctx.shadowBlur = 0;
 }
 
 function drawPlayer() {
@@ -618,8 +721,8 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Enemies close from both sides. Face them and fire.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
-    { text: "Fly WASD / Arrows   ·   Fire SPACE   ·   You face where you fly", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
+    { text: "Enemies close from both sides. Face a side; your missiles seek it.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   You face where you fly", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);
 }
@@ -657,5 +760,13 @@ requestAnimationFrame((t) => {
 
 // Expose pure helpers for potential future tests without affecting gameplay.
 if (typeof window !== "undefined") {
-  window.__seed = { clamp, rectsOverlap, lerp, offscreenX };
+  window.__seed = {
+    clamp,
+    rectsOverlap,
+    lerp,
+    offscreenX,
+    offscreen,
+    angleDelta,
+    steerAngle,
+  };
 }
