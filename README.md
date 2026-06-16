@@ -40,7 +40,6 @@ The project evolves one generation at a time.
 
 The Seed 2 is building a browser-based systems game inspired by:
 
-- M.U.L.E.
 - Economic simulations
 - Strategy games
 - Emergent systems

@@ -3,8 +3,6 @@
 Current Vision
 
 Create a browser-based systems game inspired by:
-- M.U.L.E.
-- SimCity
 - economic simulations
 
 Optimize for:
@@ -31,3 +29,9 @@ Questions
 - Is trading needed yet?
 - Should terrain matter more?
 - Is there enough tension?
+
+Current Unknowns
+- What is the core gameplay loop?
+- What resource should players care about first?
+- What creates tension?
+- What creates meaningful tradeoffs?
