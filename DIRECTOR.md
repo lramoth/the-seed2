@@ -20,28 +20,32 @@ Avoid:
 - excessive complexity
 - spreadsheet gameplay
 - hidden information
+- mechanics that add complexity without improving gameplay
 
 Current Likes
 - Space combat
+- Responsive controls
 - Clear visual feedback
-- Simple controls
-- Skill-based gameplay
-- Upgrade paths
-- Meaningful player choices
 - Spatial representation of the game world
+- Gameplay that is easy to learn
+- Gameplay that rewards mastery
 
 Current Dislikes
-- micromanagement
-- large rule systems
-- long turns
+- Micromanagement
+- Large rule systems
+- Long turns
+- Excessive menus
+- Excessive setup before gameplay begins
 
 Questions
 - Is the gameplay fun?
 - Is combat satisfying?
+- Does the player understand what to do?
 - Is there enough tension?
-- Are player actions meaningful?
-- What creates replayability?
+- What makes the player want another run?
 
 Current Unknowns
 - What is the core gameplay loop?
 - What creates tension?
+- What makes combat satisfying?
+- What creates replayability?
