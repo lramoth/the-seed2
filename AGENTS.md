@@ -16,10 +16,14 @@ Before making changes, review:
 
 - README.md
 - DIRECTOR.md
+- PROJECT_MAP.md
 - EVOLUTION_LOG.md
-- Existing source code and documentation
 
-Understand the current state of the game before proposing changes.
+Use PROJECT_MAP.md to understand the current structure of the project.
+
+Verify your understanding against the relevant source code before making changes.
+
+Understand the current state of the game before proposing a mutation.
 
 ## Project Purpose
 
@@ -256,3 +260,14 @@ Future candidates may continue competing for the same generation number.
 No generation is guaranteed acceptance.
 
 Choosing nothing is a valid outcome.
+
+## Project Map
+
+Before making changes, review `PROJECT_MAP.md` if it exists.
+
+Use it to understand the current structure of the project before exploring the source code.
+
+If your contribution significantly changes the architecture, major systems, data flow, or project organization, update `PROJECT_MAP.md` as part of the same mutation.
+
+Keep the document concise and focused on the current state of the project.
+

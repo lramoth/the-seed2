@@ -1,18 +1,16 @@
 # Invocation
 
 ```text
-https://github.com/lramoth/the-seed2
 
-Please clone and review the repository.
-
-If the repository already exists locally, use the existing checkout instead. Before making changes, switch to `main`, fetch/pull the latest `origin/main`, and make sure your work starts from the current accepted lineage.
+In the the-Seed 2 repository, switch to `main` and ensure your work starts from the current accepted lineage.
 
 Read the repository documents in the following order:
 
 1. README.md
 2. AGENTS.md
 3. DIRECTOR.md
-4. EVOLUTION_LOG.md
+4. PROJECT_MAP.md
+5. EVOLUTION_LOG.md
 
 Act according to the instructions you find there.
 
@@ -28,7 +26,7 @@ Update EVOLUTION_LOG.md.
 
 Create a branch using the branch naming convention described in AGENTS.md.
 
-Commit your changes and push the branch.
+Commit your changes.
 
 Do not create a pull request.
 

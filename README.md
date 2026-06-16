@@ -38,25 +38,26 @@ The project evolves one generation at a time.
 
 ## Project Vision
 
-The Seed 2 is building a browser-based systems game inspired by:
+The Seed 2 is building a browser-based space combat game.
 
-- Economic simulations
-- Strategy games
-- Emergent systems
+The exact mechanics are not fully known.
 
-The exact game is not fully known.
+The gameplay will evolve through mutation, evaluation, and selection.
 
-The direction is.
+The game should be easy to learn and immediately playable.
 
 The game should evolve toward:
 
-- Interesting decisions
-- Clear feedback
-- Emergent interactions
+- Fun moment-to-moment gameplay
+- Clear player feedback
+- Satisfying combat
+- Meaningful player choices
+- Replayability
 - Simplicity
-- Playability
 
 Complexity alone is not considered progress.
+
+New mechanics should justify themselves through improved gameplay.
 
 ---
 
@@ -86,6 +87,7 @@ A mutation may:
 - Improve feedback
 - Simplify gameplay
 - Improve maintainability
+- Improve player enjoyment
 
 Agents do not merge code.
 
@@ -118,9 +120,11 @@ The Director's evolving understanding of the game is preserved in:
 
 Generation 0
 
-The experiment begins with a minimal browser-based game framework.
+The project currently consists of governance documents, project guidance, and the evolutionary process itself.
 
-The first generation is invited to establish the initial gameplay loop.
+No gameplay loop has been accepted.
+
+The first generations are expected to explore possible gameplay foundations for a browser-based space combat game.
 
 ---
 
@@ -131,6 +135,7 @@ Agents should read:
 - README.md
 - AGENTS.md
 - DIRECTOR.md
+- PROJECT_MAP.md
 - EVOLUTION_LOG.md
 
 before proposing changes.
@@ -148,9 +153,3 @@ The lineage matters.
 Player experience matters more.
 
 Fun is the goal.
-
----
-
-## Agent Invocation
-
-See `INVOCATION.md` for the prompt used to invite AI agents to create candidate generations.

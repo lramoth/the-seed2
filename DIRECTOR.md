@@ -2,13 +2,19 @@
 
 Current Vision
 
-Create a browser-based systems game inspired by:
-- economic simulations
+Create a browser-based space combat game.
+
+The primary goal is fun gameplay.
+
+The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Optimize for:
+- fun moment-to-moment gameplay
+- clear player feedback
+- satisfying combat
 - interesting decisions
-- emergence
 - simplicity
+- playability
 
 Avoid:
 - excessive complexity
@@ -16,11 +22,13 @@ Avoid:
 - hidden information
 
 Current Likes
-- resource scarcity
-- terrain differences
-- visible production chains
-- spatial representation of the game world
-- visually understandable systems
+- Space combat
+- Clear visual feedback
+- Simple controls
+- Skill-based gameplay
+- Upgrade paths
+- Meaningful player choices
+- Spatial representation of the game world
 
 Current Dislikes
 - micromanagement
@@ -28,12 +36,12 @@ Current Dislikes
 - long turns
 
 Questions
-- Is trading needed yet?
-- Should terrain matter more?
+- Is the gameplay fun?
+- Is combat satisfying?
 - Is there enough tension?
+- Are player actions meaningful?
+- What creates replayability?
 
 Current Unknowns
 - What is the core gameplay loop?
-- What resource should players care about first?
 - What creates tension?
-- What creates meaningful tradeoffs?
