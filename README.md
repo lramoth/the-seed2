@@ -118,9 +118,34 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 0
+Generation 1
 
-No playable game has been accepted yet.
+A playable side-scrolling space combat core loop.
+
+### The Game
+
+The world scrolls right-to-left. You hold the left side of the screen, dodge and
+destroy incoming enemy ships, and survive as the pressure ramps up. Let an enemy
+slip past or ram you and your hull takes damage. At zero hull the run ends.
+Score is the reason to play again.
+
+### Controls
+
+- Move: WASD or Arrow Keys
+- Fire: Space
+- Launch / Restart: Space (start), R (after a run ends)
+
+### How to Run
+
+The game is a single self-contained page with no build step or dependencies.
+
+Open `index.html` directly in any modern browser, or serve the folder:
+
+```text
+python3 -m http.server 8000
+```
+
+then visit `http://localhost:8000`.
 
 ---
 
