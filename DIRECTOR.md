@@ -16,6 +16,7 @@ Playtesting suggests:
 - Threats approaching from multiple directions create more interesting gameplay.
 - Responsive controls are more important than additional mechanics at this stage.
 - Improving the feel of movement and combat is preferred over adding new systems.
+- Sound effects are needed for blaster, destroyed enemies, game over, thrusters, gameplay music
 
 Optimize for:
 - fun moment-to-moment gameplay
