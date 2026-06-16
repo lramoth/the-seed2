@@ -120,11 +120,7 @@ The Director's evolving understanding of the game is preserved in:
 
 Generation 0
 
-The project currently consists of governance documents, project guidance, and the evolutionary process itself.
-
-No gameplay loop has been accepted.
-
-The first generations are expected to explore possible gameplay foundations for a browser-based space combat game.
+No playable game has been accepted yet.
 
 ---
 

@@ -22,9 +22,7 @@ Before making changes, review:
 
 Use PROJECT_MAP.md to understand the current structure of the project.
 
-Verify your understanding against the relevant source code before making changes.
-
-Understand the current state of the game before proposing a mutation.
+Verify your understanding against the relevant source code and current gameplay before proposing a mutation.
 
 ## Project Purpose
 
@@ -127,6 +125,10 @@ The game itself is the primary artifact.
 - Leave the game playable
 - Include tests when appropriate
 - Justify how the mutation improves the game
+- Include run instructions when introducing or changing how the game is started
+- Document any new steps required to run, test, or evaluate the game
+- Ensure the Director can verify the mutation without additional investigation
+- Update project documentation when your mutation changes gameplay, architecture, controls, objectives, or run instructions
 
 ## Evolution Log Format
 
@@ -224,6 +226,7 @@ The current state of the project is defined by:
 2. The evolution history recorded in `EVOLUTION_LOG.md`.
 3. The current direction described in `DIRECTOR.md`.
 4. Previously accepted generations.
+5. The current architecture described in `PROJECT_MAP.md`.
 
 If a proposed change conflicts with a previously accepted generation or current Director guidance, the agent should explicitly explain why the change is justified.
 
@@ -267,12 +270,14 @@ No generation is guaranteed acceptance.
 
 Choosing nothing is a valid outcome.
 
-## Project Map
+## Documentation
 
-Before making changes, review `PROJECT_MAP.md` if it exists.
+Documentation is part of the project and should evolve alongside the game.
 
-Use it to understand the current structure of the project before exploring the source code.
+When appropriate:
 
-If your contribution significantly changes the architecture, major systems, data flow, or project organization, update `PROJECT_MAP.md` as part of the same mutation.
+- Update `EVOLUTION_LOG.md` to describe the mutation.
+- Update `PROJECT_MAP.md` when architecture, major systems, data flow, or project organization changes.
+- Update `README.md` when gameplay, controls, objectives, current state, or run instructions change.
 
-Keep the document concise and focused on the current state of the project.
+Keep documentation focused on the current state of the project rather than future intentions.
