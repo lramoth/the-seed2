@@ -22,11 +22,12 @@ it clear of the outer fifth of each side so threats are visible as they close.
 Firing launches enemy-seeking
 missiles that curve toward the nearest enemy ahead of them, while threats close
 in from both edges, flare red just before firing, and fire their own
-(deliberately less accurate) seeking missiles back. Those enemy missiles are
-indiscriminate — once armed, one that strikes another enemy detonates on it, so
-the player can bait the two fronts into culling each other. The player's blaster
-builds heat while firing and briefly locks out when overheated, with heat shown
-in the HUD. The hull only takes damage from an enemy missile or a ram.
+(deliberately less accurate) seeking missiles back. Those enemy missiles deal a
+lighter, recoverable hull hit than a ram and are indiscriminate — once armed,
+one that strikes another enemy detonates on it, so the player can bait the two
+fronts into culling each other. The player's blaster builds heat while firing
+and briefly locks out when overheated, with heat shown in the HUD. The hull only
+takes damage from an enemy missile or a ram.
 Occasionally a crate parachutes down from the top of the field; a green one
 restores hull, while the rarer gold "3X" one grants a timed spread-fire boost
 (every shot becomes a fan of homing missiles), with a countdown bar drawn under
@@ -108,7 +109,9 @@ The file is organized top-to-bottom into clear sections:
   reusing `steerAngle`), so they seek but stay dodgeable; after a short arming
   delay (`CFG.enemyMissile.armTime`) they also detonate on — and score — any
   enemy they strike, so their crossfire can be turned against the swarm. The hull
-  only loses health to an enemy missile or a ram. Each shot adds blaster heat,
+  only loses health to an enemy missile or a ram, and enemy missile hits are a
+  lighter damage event than a collision so the player has room to recover. Each
+  shot adds blaster heat,
   and while the `salvo` boost timer is active `fire` launches a symmetric spread
   of missiles (angles from `salvoOffsets`) for one trigger pull's heat instead of
   one missile; the timer decays each playing frame. Crates (`updatePickups`)

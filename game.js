@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 14
+ * The Seed 2 — Generation 16
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
@@ -14,7 +14,9 @@
  * them. The enemies — drifting plasma orbs trailing thin light trails — close in from
  * BOTH edges and return fire: each flares red as it charges, then lobs its own
  * seeking missile at the player, but slower and turning more lazily than the
- * player's, so it seeks for real yet can be out-flown and juked. Those enemy
+ * player's, so it seeks for real yet can be out-flown and juked; a hit hurts
+ * without gutting the run, leaving more room to recover, chase crates, and keep
+ * fighting. Those enemy
  * missiles are now indiscriminate — once armed, an enemy missile that strikes
  * another enemy detonates on it, so the two-front geometry can be turned against
  * them: slip out of the way and an enemy's shot may gut a ship on the far front.
@@ -102,7 +104,7 @@ const CFG = {
     speed: 300,
     turnRate: Math.PI * 0.6,
     life: 2.2,
-    damage: 14, // hull lost when an enemy missile connects
+    damage: 10, // hull lost when an enemy missile connects
     // The missile cannot strike an enemy for this long after launch, so it never
     // detonates on its own launcher or a neighbor at the muzzle. It can still hit
     // the player immediately. After it arms, friendly fire is live.

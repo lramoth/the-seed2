@@ -1263,3 +1263,60 @@ Future Work Enabled:
 - Convert fonts to Segoe UI / sans-serif and brighten the HUD — the deferred Director notes.
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music).
 - Tune `trailMax` and trail width/alpha for readability via `CFG`.
+
+## Generation 16
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-16-1781709861)
+
+Intent:
+Address the Director's next gameplay-pressure note: reduce hull damage when hit
+by enemy fire. Generation 15 made plasma-orb motion easier to read, but a single
+enemy missile still removed 14 hull — enough that a few readable-but-human
+mistakes could end a run before the player had much chance to recover, chase
+crates, or keep a combo alive. The smallest coherent mutation is a balance
+change to the damage value itself.
+
+Mutation:
+Reduced enemy missile damage from 14 to 10:
+
+- `CFG.enemyMissile.damage` is now 10, while ram damage remains 34.
+- Enemy missiles still seek lazily, telegraph from their launcher, arm for
+  friendly fire, and score crossfire kills exactly as before.
+- No spawn, movement, heat, pickup, scoring, camera, or rendering rules changed.
+- README, PROJECT_MAP, and the game header were updated to describe the current
+  Generation 16 behavior. Run instructions are unchanged: open `index.html`
+  directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This follows the Director's priority list without adding a new system. Enemy
+fire should still matter — dodging red missiles remains the core pressure — but
+a lighter hit makes the combat more forgiving and gives the existing recovery
+mechanics more room to breathe. Health crates become more meaningful because a
+player who takes one or two shots can still decide whether to cross the field
+for a patch, and the combo chase has more space for near-miss survival instead
+of abrupt attrition. Keeping ram damage high preserves the clear lesson that
+colliding with an orb is the bigger mistake.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Deterministic Node VM assertion passed: `CFG.enemyMissile.damage` is 10,
+  `CFG.enemy.collideDamage` remains 34, and the damage helper applies exactly 10
+  hull loss for an enemy missile hit (100 -> 90) without ending the run.
+
+Effect on Project Direction:
+Softens the punishment curve while preserving the two-front missile duel,
+crossfire baiting, and crate-chasing decisions. The game should be easier to
+evaluate as a run now lasts a little longer after imperfect dodges, without
+making enemy fire harmless.
+
+Future Work Enabled:
+- Redesign the ship as an alien UAP with strobing lights.
+- Convert fonts to Segoe UI / sans-serif and brighten the HUD.
+- Audio (blaster, enemy fire, kills, thrusters, powerups, hull reduction,
+  game-over, and calm gameplay music).
+- Tune enemy missile damage further after playtesting against crate frequency
+  and combo sustainability.
