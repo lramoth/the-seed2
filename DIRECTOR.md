@@ -9,8 +9,8 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Redesign our ship to look like a triangular UAP with slow flashing lights on each corner. Make the ship seem to have a 2.5D perspective since we're looking at it from the side.
 - Have enemy ships form squadrons or groups.
+- Enhance the appearance of our ship so that has a futuristic luminous glow.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
 - Sound effects are needed for blaster, destroyed enemies, game over, thrusters, powerups, hull reduction, calm and soothing gameplay music, and anything else that makes the gameplay addicting.
