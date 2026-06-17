@@ -10,7 +10,7 @@ The game should be easy to understand, satisfying to play, and capable of evolvi
 
 Playtesting suggests (in priority order):
 - Player movement though the space both left and right should be at least 4 screens long and circular. Enemies should spawn 1/2 the distance from the player's ship's location. 
-- Enemies should come from both the left and right sides of the screen.
+- Enemies should come from both the left and right sides of the screen and be grouped in squadrons.
 - When the player moves left and right both enemies and power ups shift slightly. They should not move differently in relationship to the user's current direction
 - Enemies shouldn't enter and exit at exactly the same height of thte screen. 
 - Enemies should be bright diffuse plasma orbs (appear commet like) with plasma tails which are vibrant and flash different colors.
