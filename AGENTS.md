@@ -119,7 +119,7 @@ The game itself is the primary artifact.
 
 ## You Must
 
-- Keep changes small and coherent but feel free to combine multiple related mutations
+- Keep changes coherent but feel free to combine multiple related mutations
 - Explain your reasoning
 - Update EVOLUTION_LOG.md
 - Leave the game playable

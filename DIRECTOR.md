@@ -9,10 +9,11 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Player movement should be at least 4 screens in length and circular, meaning you arrive back in the same position you started in if you travel in the same direction for up to 4-5 screen lengths. 
-- Enemies should move in both the left and right directions.
-- BUG: When the player moves left and right both enemies and power ups shift slightly. They should not move differently in relationship to the user's current direction
-- Enemies should be bright diffuse plasma orbs (appear commet like) with plasma tails which are vibrant and flash different colors.
+- Player movement should appear infinite. No boundary should be hit.
+- Enemies should move in both the left and right directions. Currently they are only spawning from the left and moving to the right.
+- Remove the near starscape that seems to move different than the far starscape.
+- BUG: When the player moves left and right enemies and power ups should not move differently in relationship to the user's current direction. Remove whatever parallax was added.
+- Improve the enemy plasma orb tails so that they appear like a light trail.
 - Redesign our ship to look like an alien UAP with bright strobing lights.
 - Build random small structures on the terrain.
 - Convert all fonts to Sans serif fonts.
