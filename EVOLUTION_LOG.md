@@ -768,3 +768,99 @@ Future Work Enabled:
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Tuning salvo count / spread / duration and `salvoChance` against spawn pacing
   via `CFG`
+
+## Generation 10
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-10-1781671830)
+
+Intent:
+Give the enemies the look the Director has asked for since the beginning.
+DIRECTOR.md lists, high in its priority order, "Enemies should be bright diffuse
+plasma orbs (appear comet like) with plasma tails which are vibrant and flash
+different colors." Every generation since Gen 3 has carried "plasma-orb enemy
+visuals with vibrant flashing tails" as enabled-but-unaddressed future work, so
+it is the oldest standing Director note. Through Generation 9 the enemies were
+flat red triangular ships — functional but visually generic, and their only
+heading cue was a mirrored nose. The remaining notes ranked above it are either
+already satisfied (enemies move both directions) or a large spatial rewrite (a
+circular 4–5-screen world) that would fight the accepted two-front / edge-buffer
+design, so the highest-value *small, coherent* mutation is the plasma-orb look.
+
+Mutation:
+Replaced the triangular enemy sprite with a bright, diffuse plasma orb that
+flashes through vivid colors and streams a comet tail — one coherent change
+confined to enemy spawn data and `drawEnemies`, with no gameplay-logic change:
+
+- Each enemy gains a `hue` (random starting color) and a `hueRate` (its own
+  cycle speed, from `CFG.enemy.hueRateMin`/`hueRateMax`). A new pure helper
+  `cycleHue(base, t, speed)` advances the hue around the color wheel, wrapped
+  into [0, 360); the per-orb base + rate keep the swarm flashing out of sync
+  rather than pulsing in unison.
+- `drawEnemies` now renders, per orb: a tapering, fading **comet tail** of
+  layered translucent radial puffs pointing opposite the travel direction (with
+  a soft vertical lean from the existing drift `phase`, so it whips as the orb
+  weaves), a **diffuse halo**, and a **white-hot core** that bleeds into the
+  flashing hue. All colors are HSL driven by `cycleHue`.
+- The hitbox (`e.w` × `e.h`) and every gameplay rule are untouched: spawning,
+  movement, drift, ramming, missile kills, return fire, and indiscriminate
+  crossfire all behave exactly as in Gen 9. Explosion-burst colors are also
+  unchanged, preserving the Gen 6 "cause reads by color" feedback (gold = player
+  kill, red = crossfire).
+- Header comment, README ("Current State", "The Game"), and PROJECT_MAP
+  (pure-helpers list, spawning, render) updated. The UAP ship redesign,
+  on-terrain structures, sans-serif/brighter fonts, and audio were left for
+  separate generations to keep this a single idea.
+
+Rationale:
+This implements the Director's oldest-standing named note while *reinforcing*
+the accepted lineage rather than fighting it. It is almost purely cosmetic, so
+it carries little risk of making the game feel worse, yet it is more than polish:
+the comet tail points opposite each orb's heading, so a glance now reads which
+way every threat is crossing — directly serving the lineage's core "which front
+do I face?" decision (Gens 2–4) and the Director's "clear player feedback" /
+"satisfying combat" targets. Distinct, vivid, out-of-sync colors also make the
+orbs pop against the dark field and the red/gold weapon fire, improving combat
+legibility. All new behavior is tunable from `CFG.enemy`, and the one new helper
+is pure and tested.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play.
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed:
+  - `cycleHue`: (0,0,100)→0, (10,1,100)→110, (350,1,100)→90 (wrap), (0,1,400)→40
+    (wrap), (0,-1,100)→260 (negative wrap), (360,0,0)→0; every result in [0,360).
+  - `spawnEnemy` assigned a `hue` in [0,360) and a `hueRate` within
+    `CFG.enemy.hueRateMin`/`hueRateMax`.
+  - `drawEnemies` rendered staged orbs traveling both directions without
+    throwing.
+  - Regression: a player missile overlapping a staged enemy still destroyed it
+    (enemy removed) and scored exactly `CFG.enemy.score` (+100) — gameplay logic
+    is unchanged.
+- Visual confirmation: a staged, frozen frame showed five plasma orbs in
+  distinct vivid colors (blue, purple, pink, green, gold), each trailing a
+  tapering comet tail pointing opposite its travel direction, with the player
+  ship, gold/red missiles, green health crate, gold "3X" crate, HUD, starfield,
+  and ground all intact — no rendering regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Resolves the lineage's longest-deferred Director note and gives the enemies a
+strong visual identity that also improves heading legibility. The per-entity
+`hue`/`hueRate` color-cycling pattern and the `cycleHue` helper are reusable
+substrate for further "vibrant, flashing" feedback the Director favors — e.g.
+the requested UAP ship's strobing lights, color-coded enemy variants, or pulsing
+hazards.
+
+Future Work Enabled:
+- Redesign the ship as an alien UAP with strobing lights — the deferred Director
+  note (now with a hue-cycling pattern to reuse)
+- Color- or behavior-varied enemy types built on the same orb sprite
+- Build random small structures on the terrain — the deferred Director note
+- Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Tuning orb size / tail length / hue-cycle rate for readability via `CFG`

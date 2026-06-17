@@ -1,14 +1,17 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 9
+ * The Seed 2 — Generation 10
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
- * patch the hull, a "3X" boost for a burst of spread fire.
+ * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
+ * bright plasma orbs that flash through vivid colors and stream a comet tail
+ * behind them, so each threat's heading reads at a glance against the dark.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
- * them. Enemy ships close in from BOTH edges and return fire: each lobs its own
+ * them. The enemies — drifting plasma orbs trailing comet tails — close in from
+ * BOTH edges and return fire: each lobs its own
  * seeking missiles at the player, but slower and turning more lazily than the
  * player's, so they seek for real yet can be out-flown and juked. Those enemy
  * missiles are now indiscriminate — once armed, an enemy missile that strikes
@@ -110,6 +113,11 @@ const CFG = {
     // neither all fire in unison nor snipe the instant they appear.
     fireCooldownMin: 1.6,
     fireCooldownMax: 3.2,
+    // Plasma-orb look: each enemy flashes through vivid colors at its own rate
+    // (degrees/sec around the color wheel), picked from this range so the swarm
+    // shimmers out of sync rather than pulsing in unison.
+    hueRateMin: 50,
+    hueRateMax: 150,
   },
 
   spawn: {
@@ -229,6 +237,14 @@ function salvoOffsets(count, spread) {
   const offs = [];
   for (let i = 0; i < count; i++) offs.push((i - mid) * spread);
   return offs;
+}
+
+// Advance a hue (degrees) around the color wheel from a per-entity `base` at
+// `speed` degrees/sec, wrapped into [0, 360). This is what makes each plasma
+// orb flash through vivid colors; a per-enemy base + rate keeps the swarm out
+// of sync. Pure, so the flashing is deterministic and testable.
+function cycleHue(base, t, speed) {
+  return (((base + t * speed) % 360) + 360) % 360;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,6 +382,10 @@ function spawnEnemy() {
     phase: Math.random() * Math.PI * 2,
     // Time until this ship's next shot (also staggers the very first one).
     fireCooldown: randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax),
+    // Plasma-orb color: a random starting hue and its own cycle rate, so every
+    // orb flashes through vivid colors independently of its neighbors.
+    hue: Math.random() * 360,
+    hueRate: randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax),
   });
 }
 
@@ -1052,25 +1072,66 @@ function drawSalvoBar() {
   ctx.fillRect(x, y, w * frac, h);
 }
 
+// Enemies render as bright, diffuse plasma orbs that flash through vivid colors
+// and stream a comet tail behind them. The tail points opposite the travel
+// direction (with a soft vertical lean from the drift, so it whips as the orb
+// weaves), which makes each threat's heading read at a glance — reinforcing the
+// "which front do I face?" decision. The hitbox is unchanged; the bright core
+// sits on the orb's center and the halo is just glow.
 function drawEnemies() {
+  const PUFFS = 6;
   for (const e of state.enemies) {
-    const hw = e.w / 2;
-    const hh = e.h / 2;
-    ctx.save();
-    ctx.translate(e.x + hw, e.y + hh);
-    ctx.scale(-e.dir, 1); // nose leads in the travel direction
+    const cx = e.x + e.w / 2;
+    const cy = e.y + e.h / 2;
+    const r = e.h * 0.5; // bright core radius, ~ the hitbox
+    const hue = cycleHue(e.hue, state.time, e.hueRate);
 
-    ctx.fillStyle = "#ff6b6b";
+    // Unit vector for the tail: behind the orb (-dir), leaning with the drift.
+    const tdx = -e.dir;
+    const tdy = Math.sin(e.phase) * 0.35;
+    const tlen = Math.hypot(tdx, tdy);
+    const ux = tdx / tlen;
+    const uy = tdy / tlen;
+    const tailLen = e.w * 2.6;
+
+    ctx.save();
+
+    // Comet tail: layered translucent puffs, brightest and widest just behind
+    // the orb, tapering and fading to nothing at the tip.
+    for (let i = PUFFS; i >= 1; i--) {
+      const f = i / PUFFS; // 1 at the tip, → 0 near the orb
+      const px = cx + ux * tailLen * f;
+      const py = cy + uy * tailLen * f;
+      const pr = Math.max(1, r * (1.05 - f * 0.8));
+      const a = (1 - f) * 0.5;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
+      g.addColorStop(0, `hsla(${hue}, 100%, 70%, ${a})`);
+      g.addColorStop(1, `hsla(${hue}, 100%, 55%, 0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Diffuse halo around the orb.
+    const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.9);
+    halo.addColorStop(0, `hsla(${hue}, 100%, 75%, 0.85)`);
+    halo.addColorStop(0.5, `hsla(${hue}, 100%, 60%, 0.5)`);
+    halo.addColorStop(1, `hsla(${hue}, 100%, 55%, 0)`);
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.moveTo(-hw, 0); // nose
-    ctx.lineTo(hw, -hh);
-    ctx.lineTo(hw * 0.5, 0);
-    ctx.lineTo(hw, hh);
-    ctx.closePath();
+    ctx.arc(cx, cy, r * 1.9, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#ffb3b3";
-    ctx.fillRect(-e.w * 0.05, -e.h * 0.1, 5, e.h * 0.2);
+    // White-hot core that bleeds into the flashing hue.
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    core.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+    core.addColorStop(0.6, `hsl(${hue}, 100%, 80%)`);
+    core.addColorStop(1, `hsla(${hue}, 100%, 65%, 0.25)`);
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
   }
@@ -1188,5 +1249,6 @@ if (typeof window !== "undefined") {
     steerAngle,
     playerBoundsX,
     salvoOffsets,
+    cycleHue,
   };
 }

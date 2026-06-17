@@ -54,8 +54,9 @@ The file is organized top-to-bottom into clear sections:
   missiles), `angleDelta` / `steerAngle` (capped rotation toward a heading, the
   basis of missile turning), `playBottom` (sky/ground divide), `playerBoundsX`
   (the horizontal range the player may occupy, given the edge buffer),
-  `salvoOffsets` (the symmetric angular spread of a 3X salvo). Side-effect free;
-  the testable ones are exposed on `window.__seed`.
+  `salvoOffsets` (the symmetric angular spread of a 3X salvo), `cycleHue`
+  (advances a hue around the color wheel, the basis of the plasma-orb color
+  flashing). Side-effect free; the testable ones are exposed on `window.__seed`.
 - **Canvas + input** — Keyboard state tracking and phase transitions
   (launch / restart).
 - **Game state** — A single `state` object rebuilt by `newState()` /
@@ -64,7 +65,8 @@ The file is organized top-to-bottom into clear sections:
   accumulated `groundScroll`, the crate `pickupTimer`, and entity arrays
   (`missiles`, `enemyMissiles`, `enemies`, `pickups`, `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
-  `dir` and a randomized fire cooldown) on a difficulty ramp; crates
+  `dir`, a randomized fire cooldown, and a per-orb `hue` + `hueRate` for its
+  color flashing) on a difficulty ramp; crates
   (`spawnPickup`) drop from the top on an independent timer within the player's
   horizontal band, each tagged a `kind` (`health` or the rarer `salvo`, by
   `CFG.pickup.salvoChance`); plus particle explosions.
@@ -98,9 +100,11 @@ The file is organized top-to-bottom into clear sections:
   terrain, entities (including crates drawn as a parachute-and-emblem sprite —
   a green cross for health, a gold "3X" for the salvo boost — and a countdown bar
   under the ship while boosted), particle effects, HUD (score, best, hull,
-  blaster heat), and the ready / game-over overlays. Player and enemy ships are drawn in a
-  mirrored local frame so the nose,
-  thruster, and muzzle face the direction of travel; missiles are rotated to
+  blaster heat), and the ready / game-over overlays. The player ship is drawn in
+  a mirrored local frame so its nose, thruster, and muzzle face the direction of
+  travel; enemies render as diffuse plasma orbs (a radial-gradient white-hot core
+  and halo) that flash through cycling hues (`cycleHue`) and stream a tapering,
+  fading comet tail opposite their travel; missiles are rotated to
   their heading so the dart and its exhaust point where they fly. Screen shake is
   applied as a canvas transform during damage.
 - **Main loop** — `requestAnimationFrame` loop computing `dt` and calling

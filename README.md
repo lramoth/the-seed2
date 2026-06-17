@@ -118,9 +118,10 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 9
+Generation 10
 
-A free-flight space combat loop where the enemies shoot back, their missiles
+A free-flight space combat loop where the enemies — bright plasma orbs that
+flash through vivid colors and trail comet tails — shoot back, their missiles
 burn friend and foe alike, the player's blaster can overheat, the ship flies
 with momentum, and crates parachute in to be caught — health to patch the hull,
 a "3X" boost for a burst of spread fire.
@@ -138,8 +139,10 @@ front of it and can't whip around, so *which way you face still decides which
 front you defend*; the homing just forgives an enemy's vertical drift instead
 of punishing a near miss. Continuous fire now builds blaster heat. If the heat
 bar fills, the weapon overheats and briefly vents before it can fire again, so
-controlled bursts keep you dangerous longer than holding Space forever. Enemy
-ships close in from *both* edges at once and *return fire* — each lobs its own
+controlled bursts keep you dangerous longer than holding Space forever. The
+enemies are *bright plasma orbs* that flash through vivid colors and stream a
+*comet tail* opposite the way they fly — so each threat's heading reads at a
+glance. They close in from *both* edges at once and *return fire* — each lobs its own
 seeking missiles at you, but slower and turning more lazily than yours, so you
 can out-fly and juke them. Those enemy missiles are *indiscriminate*: once armed,
 one that catches another enemy detonates on it, so dodging out of the way can
