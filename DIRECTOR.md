@@ -9,11 +9,11 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Improve the enemy plasma orb tails so that they appear like a light trail.
+- Improve the enemy plasma orb tails so that they appear like a light trail and follows the movement of the enemy orb. The tail should not be a dominant feature of the enemy ships.
 - Redesign our ship to look like an alien UAP with bright strobing lights.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
-- Sound effects are needed for blaster, destroyed enemies, game over, thrusters, gameplay music
+- Sound effects are needed for blaster, destroyed enemies, game over, thrusters, powerups, hull reduction, calm and soothing gameplay music, and anything else that makes the gameplay addicting.
 
 Optimize for:
 - fun moment-to-moment gameplay
