@@ -13,10 +13,10 @@ Playtesting suggests:
 - Player movement though the space both left and right should be infinite. 
 - The player's ship should not be able to move to either edge. There should be about a 20% buffer from the edge so that the user can see enemies quickly.
 - Allow momentum in the user's movements.
-- Enemies should be plasma orbs with plasma tails which are vibrant and flash different colors.
-- Enemies should be able to shoot at the player.
-- The player's ammunition should be enemy seeking missles.
-- Powerups should be available, which I run into, that allow me to shoot multiple missles at a time for a limited time. Show a progrss bar below the user's ship to show how long the powerup exists.
+- Enemies should be bright diffuse plasma orbs (appear commet like) with plasma tails which are vibrant and flash different colors.
+- Enemies should be able to shoot seeking missles at the player but less accurately than the players seeking missles.
+- Convert all fonts to Sans serif fonts.
+- Powerups should be available, which the player runs into, that allow the player to shoot multiple missles at a time for a limited time. Show a progrss bar below the user's ship to show how long the powerup exists.
 - Powerups are boxes which float from above with parachutes that float down slowly so I can run into for the new powerup.
 - Sound effects are needed for blaster, destroyed enemies, game over, thrusters, gameplay music
 
