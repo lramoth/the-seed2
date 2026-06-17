@@ -575,3 +575,92 @@ Future Work Enabled:
 - Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Tuning accel / drag / top speed / edge buffer against spawn pacing via `CFG`
+
+## Generation 8
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-8-1781668654)
+
+Intent:
+Give the player something positive to chase, implementing the Director's
+highest-priority unaddressed gameplay note. DIRECTOR.md asks for "occasional
+health powerups which increase the player's health stat" and, separately, that
+powerups arrive as "boxes which float from above with parachutes that float down
+slowly so I can run into" them. Through Generation 7 every object on the field
+was a threat and the hull only ever decreased — there was no way to recover and
+no reason to move *toward* anything. These two Director notes are the same idea
+(a parachuted pickup) and every generation since Gen 6 has listed health
+pickups with parachute crates as enabled-but-unaddressed future work, so the
+highest-value mutation is to add the first friendly object: a health crate that
+parachutes in.
+
+Mutation:
+Added health crates that parachute down and restore hull — one coherent new
+subsystem (`pickups`), reusing the existing collision (`rectsOverlap`), the
+player bounds helper (`playerBoundsX`), and the explosion effect:
+
+- A crate enters from the top on its own independent timer
+  (`CFG.pickup.intervalMin`/`intervalMax`, randomized so the first is staggered),
+  spawning within the player's horizontal band so it is always reachable.
+- It descends slowly (`CFG.pickup.fallSpeed`) and sways side to side
+  (`swayAmp` / `swaySpeed`) around its spawn column, selling the parachute drift.
+- Flying into a crate restores `CFG.pickup.heal` hull, capped at `maxHull`, and
+  triggers a green ship/burst flash (`player.heal`) so the rescue reads clearly.
+  A crate that sinks past the ground (`playBottom`) without being caught is lost.
+- Rendering: `drawPickups` draws a green parachute canopy with suspension lines
+  down to a boxed, glowing health cross — the one green (friendly) object on a
+  field of red/gold weapons fire, so it is unmistakable.
+- Header comment, ready-screen copy, README ("The Game", Current State), and
+  PROJECT_MAP updated. Plasma-orb visuals, multi-missile salvos, fonts, and audio
+  were left for separate generations to keep this a single idea.
+
+Rationale:
+This implements two named Director notes at once while *reinforcing* the
+accepted lineage rather than fighting it. Generations 2–7 made movement and
+facing the core decisions; the crate adds a new spatial decision on the same
+axis — do you break your favourable dodging position and cross the two-front
+crossfire to grab health, especially when you are hurt? It is purely additive
+(no control, weapon, or damage-model change) so it carries little risk of making
+the game feel worse, and the heal cap plus the "catch it before it lands" window
+keep it from trivializing the run. The momentum model from Gen 7 makes the
+detour cost real: you must lead your turn toward the falling crate and respect
+your inertia getting back. All new behavior is tunable from `CFG.pickup`.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play.
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed:
+  - A crate overlapping a hurt player (hull 50) healed to exactly 84
+    (50 + `CFG.pickup.heal` 34), was consumed, and set the green heal flash.
+  - Heal is capped: a crate caught at hull 90 topped out at exactly 100, not 124.
+  - A crate placed below the ground line (`playBottom`) was removed with no heal —
+    a missed crate is lost.
+  - A crate above the player fell `fallSpeed × dt` (7px in 0.1s), swayed off its
+    base column, stayed alive, and did not heal.
+  - The spawn timer firing produced exactly one crate, within `playerBoundsX`,
+    starting above the top edge, and reset the timer to a positive interval.
+- Visual confirmation: a staged, frozen frame showed two health crates
+  parachuting down (green canopy, suspension lines, glowing cross) clearly
+  distinct from the red enemies and gold/red weapon fire, with the player ship,
+  missiles, HUD, and ground all intact — no rendering regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Adds the first friendly object and the first way to *recover* hull, turning the
+fight from pure attrition into a push-your-luck decision about when to leave
+cover for a resource. The `pickups` array, the independent pickup timer, and the
+parachute-crate sprite are reusable substrate for the Director's other requested
+crate (multi-missile salvos with a duration bar) and for any future floating
+pickup.
+
+Future Work Enabled:
+- Multi-missile salvo power-up delivered by the same parachute crate, with the
+  duration bar the Director described — now that the crate subsystem exists
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Tuning crate drop rate / heal amount / fall speed against spawn pacing via `CFG`

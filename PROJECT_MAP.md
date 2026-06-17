@@ -25,7 +25,9 @@ missiles back. Those enemy missiles are indiscriminate — once armed, one that
 strikes another enemy detonates on it, so the player can bait the two fronts
 into culling each other. The player's blaster builds heat while firing and
 briefly locks out when overheated, with heat shown in the HUD. The hull only
-takes damage from an enemy missile or a ram. It runs as a single static page with no build
+takes damage from an enemy missile or a ram. Occasionally a health crate
+parachutes down from the top of the field; flying into it restores hull, but it
+must be caught before it sinks past the ground. It runs as a single static page with no build
 step, no dependencies, and no server requirement — opening `index.html` is
 enough to play.
 
@@ -42,8 +44,8 @@ enough to play.
 The file is organized top-to-bottom into clear sections:
 
 - **Configuration (`CFG`)** — All tunable gameplay values (world/ground band,
-  player movement / blaster heat, missile, enemy, spawn pacing) in one object.
-  Balance changes live here.
+  player movement / blaster heat, missile, enemy, spawn pacing, health-crate
+  pickups) in one object. Balance changes live here.
 - **Pure helpers** — `clamp`, `rectsOverlap`, `lerp`, `randRange`,
   `offscreenX` (left/right edge test), `offscreen` (all-four-edges test for
   missiles), `angleDelta` / `steerAngle` (capped rotation toward a heading, the
@@ -54,11 +56,13 @@ The file is organized top-to-bottom into clear sections:
   (launch / restart).
 - **Game state** — A single `state` object rebuilt by `newState()` /
   `startGame()`. Holds the phase, score, the player (including `facing`, velocity, heat,
-  and overheat lockout), per-frame `scrollDX` / accumulated `groundScroll`, and
-  entity arrays (`missiles`, `enemyMissiles`, `enemies`, `particles`, `stars`).
+  and overheat lockout), per-frame `scrollDX` / accumulated `groundScroll`, the
+  health-crate `pickupTimer`, and entity arrays (`missiles`, `enemyMissiles`,
+  `enemies`, `pickups`, `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
-  `dir` and a randomized fire cooldown) on a difficulty ramp, plus particle
-  explosions.
+  `dir` and a randomized fire cooldown) on a difficulty ramp; health crates
+  (`spawnPickup`) drop from the top on an independent timer within the player's
+  horizontal band; plus particle explosions.
 - **Update** — Fixed responsibilities per entity type, driven by delta time so
   motion is frame-rate independent. The player accelerates under input and
   retains velocity (`player.vx` / `vy`), with drag bleeding it off when input
@@ -78,9 +82,13 @@ The file is organized top-to-bottom into clear sections:
   reusing `steerAngle`), so they seek but stay dodgeable; after a short arming
   delay (`CFG.enemyMissile.armTime`) they also detonate on — and score — any
   enemy they strike, so their crossfire can be turned against the swarm. The hull
-  only loses health to an enemy missile or a ram.
+  only loses health to an enemy missile or a ram. Health crates
+  (`updatePickups`) parachute down on their own timer, swaying as they fall; the
+  player flying into one restores hull (capped at `maxHull`) and a crate that
+  sinks past the ground is lost.
 - **Render** — Draws the movement-driven parallax starfield, rolling ground
-  terrain, entities, particle effects, HUD (score, best, hull, blaster heat),
+  terrain, entities (including health crates drawn as a green parachute-and-cross
+  sprite), particle effects, HUD (score, best, hull, blaster heat),
   and the ready / game-over overlays. Player and enemy ships are drawn in a
   mirrored local frame so the nose,
   thruster, and muzzle face the direction of travel; missiles are rotated to

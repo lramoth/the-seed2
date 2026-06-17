@@ -1,9 +1,9 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 7
- * Free-flight space combat where enemy fire burns friend and foe alike, and the
- * ship flies with momentum.
+ * The Seed 2 — Generation 8
+ * Free-flight space combat where enemy fire burns friend and foe alike, the
+ * ship flies with momentum, and health crates parachute in to be caught.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
@@ -21,7 +21,10 @@
  * window that asks for bursts instead of infinite spam. The ship flies with
  * momentum — input accelerates it toward a top speed and it glides to a stop when
  * you let go, so dodging is about managing inertia — and it is held clear of the
- * outer edges so threats are visible before they close. The world only moves
+ * outer edges so threats are visible before they close. Now and then a health
+ * crate parachutes down from the top: fly into it to patch the hull, but you have
+ * to break formation and cross the fire to reach it before it sinks past the
+ * ground. The world only moves
  * when the player moves — a parallax starfield and rolling ground terrain make
  * that self-directed flight legible. Survive as the pressure ramps up. Score is
  * the reason to play again.
@@ -110,6 +113,22 @@ const CFG = {
     startInterval: 1.3, // seconds between spawns at the start
     minInterval: 0.45, // fastest spawn rate
     rampSeconds: 75, // time to reach the fastest spawn rate
+  },
+
+  // Health crates parachute down occasionally. The player flies into one to
+  // restore hull — a positive object in a field of threats, so chasing it
+  // through the crossfire is a real spatial decision when you are hurt.
+  pickup: {
+    w: 26,
+    h: 22,
+    fallSpeed: 70, // px/sec descent — slow, like a parachute
+    swayAmp: 26, // horizontal sway amplitude as it drifts down
+    swaySpeed: 1.6, // sway frequency (radians/sec)
+    heal: 34, // hull restored on pickup (capped at maxHull)
+    // Seconds between crate drops (the first is staggered too). Rare enough that
+    // grabbing one matters; the timer is independent of enemy spawning.
+    intervalMin: 9,
+    intervalMax: 14,
   },
 };
 
@@ -235,6 +254,7 @@ function newState() {
     best: state ? state.best : 0,
     shake: 0,
     spawnTimer: 0,
+    pickupTimer: randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax),
     scrollDX: 0, // player's horizontal travel this frame, drives parallax
     groundScroll: 0, // accumulated ground-terrain offset
     player: {
@@ -250,11 +270,13 @@ function newState() {
       heat: 0,
       overheated: false,
       flash: 0, // brief hit flash timer
+      heal: 0, // brief heal flash timer (green) when a crate is grabbed
       muzzle: 0, // muzzle flash timer
     },
     missiles: [],
     enemyMissiles: [],
     enemies: [],
+    pickups: [],
     particles: [],
     stars: makeStars(),
   };
@@ -318,6 +340,21 @@ function spawnEnemy() {
   });
 }
 
+// A health crate enters from the top and parachutes down. It spawns within the
+// player's horizontal band so it is always reachable, then sways as it falls.
+function spawnPickup() {
+  const bounds = playerBoundsX(CFG.width, CFG.pickup.w, CFG.player.edgeBuffer);
+  const baseX = randRange(bounds.lo, bounds.hi);
+  state.pickups.push({
+    baseX, // sway oscillates around this
+    x: baseX, // updated to baseX + sway each frame
+    y: -CFG.pickup.h - 24,
+    w: CFG.pickup.w,
+    h: CFG.pickup.h,
+    phase: Math.random() * Math.PI * 2,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Effects
 // ---------------------------------------------------------------------------
@@ -352,6 +389,7 @@ function update(dt) {
     updateMissiles(dt);
     updateEnemies(dt);
     updateEnemyMissiles(dt);
+    updatePickups(dt);
   }
 
   // The world only moves because the player moved through it.
@@ -438,6 +476,7 @@ function updatePlayer(dt) {
     p.overheated = false;
   }
   if (p.flash > 0) p.flash -= dt;
+  if (p.heal > 0) p.heal -= dt;
   if (p.muzzle > 0) p.muzzle -= dt;
 
   if (isDown(...FIRE_KEYS) && p.cooldown <= 0 && !p.overheated) {
@@ -491,6 +530,40 @@ function updateSpawning(dt) {
   if (state.spawnTimer <= 0) {
     spawnEnemy();
     state.spawnTimer = currentSpawnInterval();
+  }
+}
+
+// Health crates parachute in on their own slow timer, drift down with a gentle
+// sway, and either restore hull when the player flies into one or are lost when
+// they sink past the ground. Grabbing one when hurt is worth detouring for;
+// grabbing at full hull simply tops out (the heal is capped).
+function updatePickups(dt) {
+  const p = state.player;
+
+  state.pickupTimer -= dt;
+  if (state.pickupTimer <= 0) {
+    spawnPickup();
+    state.pickupTimer = randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax);
+  }
+
+  for (let i = state.pickups.length - 1; i >= 0; i--) {
+    const c = state.pickups[i];
+    c.phase += dt * CFG.pickup.swaySpeed;
+    c.y += CFG.pickup.fallSpeed * dt;
+    c.x = c.baseX + Math.sin(c.phase) * CFG.pickup.swayAmp;
+
+    if (rectsOverlap(c, p)) {
+      state.pickups.splice(i, 1);
+      p.hull = Math.min(CFG.player.maxHull, p.hull + CFG.pickup.heal);
+      p.heal = 0.4; // green flash on the ship + hull bar as feedback
+      spawnExplosion(c.x + c.w / 2, c.y + c.h / 2, "#4dffa6", 18);
+      continue;
+    }
+
+    // Sank past the ground without being caught — it is gone.
+    if (c.y > playBottom()) {
+      state.pickups.splice(i, 1);
+    }
   }
 }
 
@@ -689,6 +762,7 @@ function render() {
   drawParticles();
 
   if (state.phase !== "ready") {
+    drawPickups();
     drawMissiles();
     drawEnemyMissiles();
     drawEnemies();
@@ -783,6 +857,56 @@ function drawMissileSprite(m, exhaust, body, glow) {
   ctx.restore();
 }
 
+// A health crate hanging under a parachute: a green canopy with suspension
+// lines down to a boxed health cross. The green palette marks it as the one
+// friendly object on the field, distinct from the red/gold of weapons fire.
+function drawPickups() {
+  for (const c of state.pickups) {
+    const cx = c.x + c.w / 2;
+    const top = c.y;
+    const chuteW = c.w * 1.9;
+    const chuteH = c.h * 0.95;
+    const chuteY = top - chuteH - 10;
+
+    // Suspension lines from the canopy rim to the crate corners.
+    ctx.strokeStyle = "rgba(180, 255, 220, 0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - chuteW / 2, chuteY + chuteH);
+    ctx.lineTo(c.x, top);
+    ctx.moveTo(cx + chuteW / 2, chuteY + chuteH);
+    ctx.lineTo(c.x + c.w, top);
+    ctx.moveTo(cx, chuteY + chuteH);
+    ctx.lineTo(cx, top);
+    ctx.stroke();
+
+    // Canopy — a soft dome with a scalloped lower edge.
+    ctx.fillStyle = "#3ce896";
+    ctx.globalAlpha = 0.92;
+    ctx.beginPath();
+    ctx.moveTo(cx - chuteW / 2, chuteY + chuteH);
+    ctx.quadraticCurveTo(cx - chuteW / 2, chuteY, cx, chuteY);
+    ctx.quadraticCurveTo(cx + chuteW / 2, chuteY, cx + chuteW / 2, chuteY + chuteH);
+    ctx.quadraticCurveTo(cx, chuteY + chuteH + 7, cx - chuteW / 2, chuteY + chuteH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Crate body with a glowing health cross.
+    ctx.fillStyle = "#0d2a1e";
+    ctx.fillRect(c.x, c.y, c.w, c.h);
+    ctx.strokeStyle = "#4dffa6";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#4dffa6";
+    ctx.shadowBlur = 8;
+    ctx.strokeRect(c.x, c.y, c.w, c.h);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#4dffa6";
+    ctx.fillRect(c.x + c.w * 0.4, c.y + c.h * 0.22, c.w * 0.2, c.h * 0.56);
+    ctx.fillRect(c.x + c.w * 0.2, c.y + c.h * 0.4, c.w * 0.6, c.h * 0.2);
+  }
+}
+
 function drawMissiles() {
   for (const m of state.missiles) {
     drawMissileSprite(m, "rgba(255, 150, 60, 0.55)", "#fff27a", "#ffae3c");
@@ -818,8 +942,8 @@ function drawPlayer() {
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // Hull — white flash briefly when hit.
-  ctx.fillStyle = p.flash > 0 ? "#ffffff" : "#dfe9ff";
+  // Hull — white flash when hit, green flash briefly when a crate restores hull.
+  ctx.fillStyle = p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#4dffa6" : "#dfe9ff";
   ctx.beginPath();
   ctx.moveTo(hw, 0); // nose
   ctx.lineTo(-hw, -hh);
@@ -932,6 +1056,7 @@ function drawReadyScreen() {
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
     { text: "Enemies close from both sides and shoot back — their fire burns friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Catch parachuting green crates to patch your hull.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);

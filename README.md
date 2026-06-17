@@ -118,11 +118,11 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 7
+Generation 8
 
 A free-flight space combat loop where the enemies shoot back, their missiles
-burn friend and foe alike, the player's blaster can overheat, and the ship now
-flies with momentum.
+burn friend and foe alike, the player's blaster can overheat, the ship flies
+with momentum, and health crates parachute in to be caught.
 
 ### The Game
 
@@ -148,6 +148,9 @@ their position: your hull only takes damage from an enemy missile or a ram —
 letting a ship slip off an edge costs you nothing. Each run is a two-front
 problem: face the side that's shooting at you, manage blaster heat, seek it
 clear, bait the crossfire, and dodge the incoming fire while you pivot. At zero hull the run ends.
+Now and then a *health crate parachutes down* from the top of the field — fly
+into it to patch your hull, but you have to *break formation and cross the fire*
+to reach it before it sinks past the ground, so the rescue is its own gamble.
 The world only moves as you move through it — a parallax starfield and rolling
 ground terrain mark your heading. Score is the reason to play again.
 
