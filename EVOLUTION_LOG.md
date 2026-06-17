@@ -1526,3 +1526,67 @@ Future Work Enabled:
   stronger feedback.
 - Continue refining HUD contrast if specific labels remain hard to read on
   smaller displays.
+
+## Generation 20
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-20-1781738856)
+
+Intent:
+Make the accepted squadron mechanic produce a distinct combat payoff. Generation
+17 made grouped waves tactically interesting, but clearing a formation still
+felt identical to killing the same number of unrelated enemies. The smallest
+coherent mutation is to reward a clean squadron wipe without adding controls,
+enemy classes, or another persistent meter.
+
+Mutation:
+Added a squadron-clear score reward and feedback:
+
+- `state.squadrons` tracks each spawned formation's size, surviving members,
+  scored kills, and whether the group was broken by an escape or ram.
+- All enemy removals now route through one helper, preserving the existing
+  explosion, scoring, crossfire, ram, and harmless-breach behavior while keeping
+  squadron accounting consistent.
+- Killing every member before any orb escapes or rams awards
+  `CFG.squadron.clearBonus` (250) multiplied by the current combo multiplier.
+- A cyan `SQUAD CLEAR +N` message rises from the final kill with a cyan particle
+  burst and a short procedural audio accent.
+- README and PROJECT_MAP were updated. Run instructions are unchanged: open
+  `index.html` directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This gives grouped waves a clear purpose in the score chase. A squadron is now a
+tempting short-term objective: spend heat and risk position to finish the whole
+formation, or let it break and lose the bonus. Scaling the reward with the
+existing combo system connects the mutation to accepted mastery instead of
+adding a parallel resource. Escapes remain harmless to hull, preserving the
+accepted damage model; they only invalidate the optional formation reward.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- `git diff --check` passed.
+- Deterministic Node VM assertions passed:
+  - A clean two-orb clear awarded normal x1/x2 kill score plus a combo-scaled
+    `SQUAD CLEAR +500` bonus, created one floater, and removed its bookkeeping.
+  - An escape followed by a kill marked the squadron broken, awarded only the
+    ordinary kill score, created no clear floater, and cleaned up its state.
+  - Squadron-clear floaters rise and expire on schedule.
+- Served the branch at `http://127.0.0.1:8765/`, launched and played a live run
+  to score 2400 with a x5 combo, reached game over normally, and saw no browser
+  console errors.
+
+Effect on Project Direction:
+Turns squadrons from denser spawn events into score-bearing combat objectives.
+The player now has a readable reason to commit to finishing a formation, while
+the game stays simple and the existing heat, combo, spread-fire, homing, and
+crossfire systems all become more relevant to that decision.
+
+Future Work Enabled:
+- Tune the 250-point base bonus after comparing clean clears against ordinary
+  combo scoring.
+- Add a subtle squadron-arrival cue if formations still need earlier readability.
+- Reuse the floating feedback path for rare high-value combat events, if future
+  playtesting identifies one.

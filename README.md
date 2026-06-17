@@ -118,7 +118,7 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 19
+Generation 20
 
 A free-flight space combat loop set in a twenty-screen patrol sector, where the
 camera keeps the ship readable while the whole world scrolls in one shared
@@ -126,7 +126,10 @@ frame: stars, ground, terrain structures, enemies, crates, missiles, and the
 player all agree about motion. The enemies are bright plasma orbs that sometimes
 enter as two- or three-orb squadrons from one edge, flash through vivid colors,
 trail a thin light trail along their weaving path, and flare red before shooting
-back; their missiles burn friend and foe alike but deal reduced hull damage, the
+back; wiping every orb in a squadron before any member escapes or rams awards a
+visible SQUAD CLEAR score bonus, so grouped fronts are tempting targets instead
+of only denser pressure. Their missiles burn friend and foe alike but deal
+reduced hull damage, the
 player's blaster can overheat, the ship flies with momentum under a futuristic
 luminous hull, and crates parachute in to be caught — health to patch the hull,
 a "3X" boost for a burst of spread fire. Procedural audio now adds a calm in-run
@@ -162,7 +165,10 @@ heading and drift read at a glance without the trail dominating the orb.
 Some waves now arrive as *small squadrons*: two or three color-matched orbs
 enter from one edge in a loose vertical formation, with shared speed and
 staggered fire timers, so the player reads them as a front to answer rather than
-as isolated targets. They close in from *both* edges at once and *return fire* —
+as isolated targets. Clear every orb in that group before one drifts away or
+rams you and the game flashes a *SQUAD CLEAR* bonus near the last kill, with the
+bonus scaled by your current combo multiplier — making a clean formation wipe a
+score play worth chasing. They close in from *both* edges at once and *return fire* —
 a red charge ring and hot aiming bead flare around an orb just before it shoots,
 then it lobs its own seeking missile at you, slower and turning more lazily than
 yours, so you can out-fly and juke it; when one connects, it now strips a
@@ -191,8 +197,8 @@ too — so pressing the attack and keeping the chain alive is worth far more tha
 picking ships off one at a time, while a lull lets the streak reset to nothing.
 Sound starts when you launch the run: a soft procedural music bed supports play,
 the thruster hum rises only while you push the ship, and short cues mark shots,
-enemy fire, kills, combo climbs, pickups, hull loss, overheat, and game over
-without adding any audio files or setup steps. In-canvas text uses a
+enemy fire, kills, squadron clears, combo climbs, pickups, hull loss, overheat,
+and game over without adding any audio files or setup steps. In-canvas text uses a
 Segoe-style sans-serif stack with brighter HUD labels for readability against
 the dark field.
 Score is the reason to play again.

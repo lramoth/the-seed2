@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 19
+ * The Seed 2 — Generation 20
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum under a futuristic luminous hull, and crates
  * parachute in to be caught — health to patch the hull, a "3X" boost for a
@@ -162,6 +162,7 @@ const CFG = {
     entrySpacing: 42,
     fireStagger: 0.24,
     intervalCost: 0.55, // extra delay per extra orb spawned in one wave
+    clearBonus: 250, // score awarded for wiping a full squadron before it breaks
   },
 
   // A kill streak: each kill chained within a short window raises a score
@@ -596,6 +597,12 @@ const audio = (() => {
     }
   }
 
+  function squadronClear() {
+    tone({ freq: 520, endFreq: 780, duration: 0.1, type: "triangle", volume: 0.045 });
+    tone({ freq: 780, endFreq: 1170, duration: 0.13, type: "sine", volume: 0.04, delay: 0.08 });
+    noise({ duration: 0.12, volume: 0.025, filterFreq: 1250, delay: 0.02 });
+  }
+
   function pickup(kind) {
     if (kind === "salvo") {
       tone({ freq: 520, endFreq: 780, duration: 0.12, type: "triangle", volume: 0.055 });
@@ -639,6 +646,7 @@ const audio = (() => {
     playerShot,
     enemyShot,
     kill,
+    squadronClear,
     pickup,
     hit,
     overheat,
@@ -711,6 +719,7 @@ function newState() {
     combo: 0, // current kill-streak length (0 = no active streak)
     comboTimer: 0, // seconds left to chain the next kill before the streak resets
     comboFlash: 0, // brief pop when the multiplier ticks up
+    squadrons: Object.create(null),
     pickupTimer: randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax),
     player,
     missiles: [],
@@ -718,6 +727,7 @@ function newState() {
     enemies: [],
     pickups: [],
     particles: [],
+    floaters: [],
     stars: makeStars(),
     structures: makeStructures(),
   };
@@ -831,6 +841,7 @@ function spawnSquadron(count) {
   const hueBase = Math.random() * 360;
   const hueRate = randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax);
   const squadron = "sq-" + Math.floor(state.time * 1000) + "-" + state.enemies.length;
+  state.squadrons[squadron] = { size, alive: size, kills: 0, broken: false };
 
   for (let i = 0; i < size; i++) {
     spawnEnemy({
@@ -892,6 +903,18 @@ function spawnExplosion(cx, cy, color, count) {
   }
 }
 
+function spawnFloater(text, x, y, color) {
+  state.floaters.push({
+    text,
+    x,
+    y,
+    vy: -24,
+    life: 1.1,
+    maxLife: 1.1,
+    color,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Update
 // ---------------------------------------------------------------------------
@@ -910,6 +933,7 @@ function update(dt) {
   }
 
   updateParticles(dt);
+  updateFloaters(dt);
 }
 
 // Register a scored enemy kill: advance the kill streak, award score scaled by
@@ -948,6 +972,51 @@ function updateParticles(dt) {
     p.life -= dt;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
+}
+
+function updateFloaters(dt) {
+  for (let i = state.floaters.length - 1; i >= 0; i--) {
+    const f = state.floaters[i];
+    f.y += f.vy * dt;
+    f.life -= dt;
+    if (f.life <= 0) state.floaters.splice(i, 1);
+  }
+}
+
+function awardSquadronClear(e) {
+  const mult = comboMultiplier(state.combo, CFG.combo.max);
+  const bonus = CFG.squadron.clearBonus * mult;
+  state.score += bonus;
+  state.comboFlash = Math.max(state.comboFlash, 0.25);
+  spawnFloater("SQUAD CLEAR +" + bonus, e.x + e.w / 2, e.y - 8, "#36d7ff");
+  spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#36d7ff", 18);
+  audio.squadronClear();
+}
+
+function recordEnemyRemoval(e, scored) {
+  if (!e.squadron) return;
+  const sq = state.squadrons[e.squadron];
+  if (!sq) return;
+
+  sq.alive = Math.max(0, sq.alive - 1);
+  if (scored) sq.kills += 1;
+  else sq.broken = true;
+
+  if (sq.alive <= 0) {
+    if (!sq.broken && sq.kills === sq.size) awardSquadronClear(e);
+    delete state.squadrons[e.squadron];
+  }
+}
+
+function removeEnemyAt(index, color, particleCount, scored) {
+  const e = state.enemies[index];
+  state.enemies.splice(index, 1);
+  if (color && particleCount > 0) {
+    spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, color, particleCount);
+  }
+  if (scored) scoreKill();
+  recordEnemyRemoval(e, scored);
+  return e;
 }
 
 function updatePlayer(dt) {
@@ -1209,9 +1278,7 @@ function updateEnemyMissiles(dt) {
       for (let j = state.enemies.length - 1; j >= 0; j--) {
         const e = state.enemies[j];
         if (rectsOverlap(m, e)) {
-          state.enemies.splice(j, 1);
-          spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ff5a6e", 14);
-          scoreKill();
+          removeEnemyAt(j, "#ff5a6e", 14, true);
           fragged = true;
           break;
         }
@@ -1254,14 +1321,13 @@ function updateEnemies(dt) {
     // Slipping off either edge is now harmless — the threat is enemy fire, not
     // position, so an uncleared ship simply leaves the field.
     if (offscreenX(e, CFG.width, state.cameraX, CFG.world.despawnMargin)) {
-      state.enemies.splice(i, 1);
+      removeEnemyAt(i, null, 0, false);
       continue;
     }
 
     // Enemy rams the player.
     if (rectsOverlap(e, p)) {
-      state.enemies.splice(i, 1);
-      spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ff7a3c", 16);
+      removeEnemyAt(i, "#ff7a3c", 16, false);
       damagePlayer(CFG.enemy.collideDamage, true);
       continue;
     }
@@ -1276,9 +1342,7 @@ function updateEnemies(dt) {
       }
     }
     if (hit) {
-      state.enemies.splice(i, 1);
-      spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ffd23c", 14);
-      scoreKill();
+      removeEnemyAt(i, "#ffd23c", 14, true);
       continue;
     }
 
@@ -1339,6 +1403,7 @@ function render() {
   drawGround();
   drawStructures();
   drawParticles();
+  drawFloaters();
 
   if (state.phase !== "ready") {
     drawPickups();
@@ -1447,6 +1512,24 @@ function drawParticles() {
     ctx.fillStyle = p.color;
     ctx.fillRect(sx - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
+  ctx.globalAlpha = 1;
+}
+
+function drawFloaters() {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = uiFont(16, "700");
+  for (const f of state.floaters) {
+    const sx = worldToScreenX(f.x, state.cameraX);
+    if (sx < -120 || sx > CFG.width + 120) continue;
+    const alpha = clamp(f.life / f.maxLife, 0, 1);
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = f.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, sx, f.y);
+  }
+  ctx.restore();
   ctx.globalAlpha = 1;
 }
 
