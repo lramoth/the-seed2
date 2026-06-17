@@ -13,7 +13,6 @@ Playtesting suggests (in priority order highest to lowest):
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
 
-
 Optimize for:
 - fun moment-to-moment gameplay
 - clear player feedback
