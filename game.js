@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 17
+ * The Seed 2 — Generation 18
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
@@ -40,9 +40,11 @@
  * small terrain structures. Flying horizontally scrolls that whole world
  * together instead of putting the background in a different motion frame, so the
  * battlefield finally feels long without reviving the old parallax confusion.
- * Survive as the pressure ramps up. Chaining kills before a short window lapses
- * builds a score-multiplier streak, so pressing the attack is worth more than
- * picking ships off one at a time. Score is the reason to play again.
+ * Procedural Web Audio adds soft gameplay music, thruster hum, weapon, hit,
+ * pickup, kill, combo, and game-over cues so combat feedback is felt as well as
+ * seen. Survive as the pressure ramps up. Chaining kills before a short window
+ * lapses builds a score-multiplier streak, so pressing the attack is worth more
+ * than picking ships off one at a time. Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -198,6 +200,16 @@ const CFG = {
     spread: 0.16, // radians between adjacent missiles in the spread
     duration: 7, // seconds the boost lasts after pickup
   },
+
+  // Procedural audio keeps the project asset-free while giving each combat
+  // moment a distinct cue. Volumes are intentionally restrained so the calm pad
+  // supports play and effects punctuate decisions instead of overwhelming them.
+  audio: {
+    master: 0.55,
+    effects: 0.42,
+    music: 0.045,
+    thrust: 0.055,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -343,6 +355,288 @@ const ctx = canvas.getContext("2d");
 const keys = Object.create(null);
 const FIRE_KEYS = new Set(["Space"]);
 
+// ---------------------------------------------------------------------------
+// Audio
+// ---------------------------------------------------------------------------
+const audio = (() => {
+  const AudioCtor =
+    typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+  let ctx = null;
+  let masterGain = null;
+  let effectsGain = null;
+  let musicGain = null;
+  let thrustGain = null;
+  let thrustOsc = null;
+  let musicNodes = [];
+
+  function ensure() {
+    if (!AudioCtor) return false;
+    if (!ctx) {
+      ctx = new AudioCtor();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = CFG.audio.master;
+      masterGain.connect(ctx.destination);
+
+      effectsGain = ctx.createGain();
+      effectsGain.gain.value = CFG.audio.effects;
+      effectsGain.connect(masterGain);
+
+      musicGain = ctx.createGain();
+      musicGain.gain.value = 0.0001;
+      musicGain.connect(masterGain);
+
+      thrustGain = ctx.createGain();
+      thrustGain.gain.value = 0.0001;
+      thrustGain.connect(masterGain);
+      setupThrust();
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    return true;
+  }
+
+  function setupThrust() {
+    if (thrustOsc) return;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 180;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = 68;
+
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 6.5;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 7;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    osc.connect(filter);
+    filter.connect(thrustGain);
+    osc.start();
+    lfo.start();
+    thrustOsc = osc;
+  }
+
+  function setGainTarget(gain, value, timeConstant = 0.08) {
+    const t = ctx.currentTime;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setTargetAtTime(Math.max(0.0001, value), t, timeConstant);
+  }
+
+  function stopNodeLater(node, when) {
+    try {
+      node.stop(when);
+    } catch (_) {
+      // Some browsers throw if a node has already been stopped; sound cleanup
+      // should never interrupt gameplay.
+    }
+  }
+
+  function tone({
+    freq,
+    endFreq = freq,
+    duration = 0.12,
+    type = "sine",
+    volume = 0.08,
+    attack = 0.006,
+    delay = 0,
+  }) {
+    if (!ensure()) return;
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(1, freq), t);
+    if (endFreq !== freq) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), t + duration);
+    }
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(Math.max(0.0001, volume), t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    osc.connect(gain);
+    gain.connect(effectsGain);
+    osc.start(t);
+    stopNodeLater(osc, t + duration + 0.04);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  function noise({ duration = 0.12, volume = 0.06, filterFreq = 700, delay = 0 }) {
+    if (!ensure()) return;
+    const t = ctx.currentTime + delay;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const fade = 1 - i / len;
+      data[i] = (Math.random() * 2 - 1) * fade;
+    }
+
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    filter.type = "lowpass";
+    filter.frequency.value = filterFreq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(volume, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(effectsGain);
+    source.start(t);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  function stopMusic(fade = 0.8) {
+    if (!ctx || !musicGain) return;
+    const t = ctx.currentTime;
+    musicGain.gain.cancelScheduledValues(t);
+    musicGain.gain.setTargetAtTime(0.0001, t, Math.max(0.05, fade));
+    const oldNodes = musicNodes;
+    musicNodes = [];
+    for (const node of oldNodes) {
+      stopNodeLater(node.osc, t + fade + 0.25);
+      node.osc.onended = () => {
+        node.osc.disconnect();
+        node.gain.disconnect();
+      };
+    }
+  }
+
+  function startMusic() {
+    if (!ensure()) return;
+    stopMusic(0.08);
+    const t = ctx.currentTime;
+    musicGain.gain.cancelScheduledValues(t);
+    musicGain.gain.setValueAtTime(0.0001, t);
+    musicGain.gain.linearRampToValueAtTime(CFG.audio.music, t + 1.6);
+
+    const voices = [
+      { freq: 110.0, type: "sine", gain: 0.8 },
+      { freq: 164.81, type: "triangle", gain: 0.5 },
+      { freq: 220.0, type: "sine", gain: 0.35 },
+      { freq: 293.66, type: "sine", gain: 0.22 },
+    ];
+    for (const voice of voices) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = voice.type;
+      osc.frequency.setValueAtTime(voice.freq, t);
+      osc.detune.value = randRange(-4, 4);
+      gain.gain.value = voice.gain;
+      osc.connect(gain);
+      gain.connect(musicGain);
+      osc.start(t);
+      musicNodes.push({ osc, gain });
+    }
+  }
+
+  function startRun() {
+    if (!ensure()) return;
+    startMusic();
+    tone({ freq: 440, endFreq: 660, duration: 0.16, type: "triangle", volume: 0.06 });
+    tone({ freq: 880, endFreq: 990, duration: 0.18, type: "sine", volume: 0.035, delay: 0.08 });
+  }
+
+  function setThrusting(on) {
+    if (!ctx && !on) return;
+    if (!ensure()) return;
+    setGainTarget(thrustGain, on ? CFG.audio.thrust : 0.0001, on ? 0.06 : 0.12);
+  }
+
+  function playerShot(count) {
+    tone({
+      freq: count > 1 ? 760 : 620,
+      endFreq: 260,
+      duration: 0.09,
+      type: "square",
+      volume: count > 1 ? 0.075 : 0.055,
+    });
+    if (count > 1) {
+      tone({ freq: 980, endFreq: 720, duration: 0.08, type: "sine", volume: 0.035 });
+    }
+  }
+
+  function enemyShot() {
+    tone({ freq: 240, endFreq: 90, duration: 0.15, type: "sawtooth", volume: 0.04 });
+  }
+
+  function kill(combo) {
+    noise({ duration: 0.11, volume: 0.035, filterFreq: 950 });
+    tone({ freq: 180, endFreq: 420, duration: 0.13, type: "triangle", volume: 0.055 });
+    if (combo >= 2) {
+      const capped = combo >= CFG.combo.max;
+      tone({
+        freq: capped ? 720 : 560,
+        endFreq: capped ? 1080 : 820,
+        duration: 0.11,
+        type: "sine",
+        volume: capped ? 0.055 : 0.04,
+        delay: 0.06,
+      });
+    }
+  }
+
+  function pickup(kind) {
+    if (kind === "salvo") {
+      tone({ freq: 520, endFreq: 780, duration: 0.12, type: "triangle", volume: 0.055 });
+      tone({ freq: 780, endFreq: 1040, duration: 0.12, type: "triangle", volume: 0.045, delay: 0.08 });
+      tone({ freq: 1040, endFreq: 1320, duration: 0.12, type: "sine", volume: 0.035, delay: 0.16 });
+    } else {
+      tone({ freq: 330, endFreq: 660, duration: 0.18, type: "triangle", volume: 0.05 });
+      tone({ freq: 495, endFreq: 880, duration: 0.16, type: "sine", volume: 0.03, delay: 0.06 });
+    }
+  }
+
+  function hit(ram) {
+    noise({ duration: ram ? 0.2 : 0.13, volume: ram ? 0.07 : 0.045, filterFreq: ram ? 520 : 820 });
+    tone({
+      freq: ram ? 120 : 160,
+      endFreq: ram ? 48 : 70,
+      duration: ram ? 0.22 : 0.15,
+      type: "sawtooth",
+      volume: ram ? 0.055 : 0.035,
+    });
+  }
+
+  function overheat() {
+    noise({ duration: 0.24, volume: 0.035, filterFreq: 1100 });
+    tone({ freq: 260, endFreq: 120, duration: 0.22, type: "triangle", volume: 0.035 });
+  }
+
+  function gameOver() {
+    if (!ensure()) return;
+    setThrusting(false);
+    stopMusic(0.75);
+    noise({ duration: 0.22, volume: 0.045, filterFreq: 480 });
+    tone({ freq: 220, endFreq: 164, duration: 0.26, type: "triangle", volume: 0.06 });
+    tone({ freq: 164, endFreq: 110, duration: 0.3, type: "triangle", volume: 0.05, delay: 0.16 });
+    tone({ freq: 110, endFreq: 55, duration: 0.42, type: "sine", volume: 0.045, delay: 0.34 });
+  }
+
+  return {
+    startRun,
+    setThrusting,
+    playerShot,
+    enemyShot,
+    kill,
+    pickup,
+    hit,
+    overheat,
+    gameOver,
+  };
+})();
+
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   // Prevent the page from scrolling while playing.
@@ -458,6 +752,7 @@ function startGame() {
   state = newState();
   state.best = best;
   state.phase = "playing";
+  audio.startRun();
 }
 
 // ---------------------------------------------------------------------------
@@ -617,6 +912,7 @@ function scoreKill() {
   state.comboTimer = CFG.combo.window;
   state.score += CFG.enemy.score * comboMultiplier(state.combo, CFG.combo.max);
   if (state.combo >= 2) state.comboFlash = 0.25;
+  audio.kill(state.combo);
 }
 
 // The kill streak survives only as long as kills keep landing inside the window.
@@ -657,6 +953,7 @@ function updatePlayer(dt) {
   // Face the direction of horizontal travel; this is also the aim direction.
   if (dx < 0) p.facing = -1;
   else if (dx > 0) p.facing = 1;
+  audio.setThrusting(dx !== 0 || dy !== 0);
 
   // Normalize diagonal input so it isn't a stronger push than cardinal input.
   if (dx !== 0 && dy !== 0) {
@@ -739,9 +1036,14 @@ function fire() {
       life: CFG.missile.life,
     });
   }
+  audio.playerShot(offsets.length);
   // Heat is per trigger pull, not per missile, so the boost stays a clear reward.
+  const wasOverheated = p.overheated;
   p.heat = clamp(p.heat + CFG.player.heatPerShot, 0, 1);
-  if (p.heat >= 1) p.overheated = true;
+  if (p.heat >= 1) {
+    p.overheated = true;
+    if (!wasOverheated) audio.overheat();
+  }
   p.muzzle = 0.06;
 }
 
@@ -763,6 +1065,7 @@ function enemyFire(e) {
     life: CFG.enemyMissile.life,
     armTime: CFG.enemyMissile.armTime, // delay before it can strike other enemies
   });
+  audio.enemyShot();
 }
 
 function updateSpawning(dt) {
@@ -803,6 +1106,7 @@ function updatePickups(dt) {
         p.heal = 0.4; // green flash on the ship + hull bar as feedback
         spawnExplosion(c.x + c.w / 2, c.y + c.h / 2, "#4dffa6", 18);
       }
+      audio.pickup(c.kind);
       continue;
     }
 
@@ -988,6 +1292,7 @@ function damagePlayer(amount, ram) {
   p.hull -= amount;
   p.flash = 0.18;
   state.shake = ram ? 12 : 6;
+  audio.hit(ram);
   spawnExplosion(p.x + p.w / 2, p.y + p.h / 2, "#ff4d4d", ram ? 14 : 8);
   if (p.hull <= 0) {
     p.hull = 0;
@@ -998,6 +1303,7 @@ function damagePlayer(amount, ram) {
 function endGame() {
   state.phase = "gameover";
   state.best = Math.max(state.best, state.score);
+  audio.gameOver();
   spawnExplosion(
     state.player.x + state.player.w / 2,
     state.player.y + state.player.h / 2,

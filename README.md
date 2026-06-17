@@ -118,7 +118,7 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 17
+Generation 18
 
 A free-flight space combat loop set in a twenty-screen patrol sector, where the
 camera keeps the ship readable while the whole world scrolls in one shared
@@ -129,9 +129,10 @@ trail a thin light trail along their weaving path, and flare red before shooting
 back; their missiles burn friend and foe alike but deal reduced hull damage, the
 player's blaster can overheat, the ship flies with momentum, and crates
 parachute in to be caught — health to patch the hull, a "3X" boost for a burst
-of spread fire. The
-HUD includes a compact sector readout so the Director can verify the long-world
-mutation immediately.
+of spread fire. Procedural audio now adds a calm in-run pad, thruster hum,
+weapon shots, enemy shots, kill bursts, combo chimes, pickup cues, hull-hit
+alerts, overheat venting, and a game-over falloff. The HUD includes a compact
+sector readout so the Director can verify the long-world mutation immediately.
 
 ### The Game
 
@@ -185,6 +186,10 @@ short window lapses raises a **COMBO** multiplier (shown top-center with a
 shrinking timer bar) up to a cap, and the bonus applies to baited crossfire kills
 too — so pressing the attack and keeping the chain alive is worth far more than
 picking ships off one at a time, while a lull lets the streak reset to nothing.
+Sound starts when you launch the run: a soft procedural music bed supports play,
+the thruster hum rises only while you push the ship, and short cues mark shots,
+enemy fire, kills, combo climbs, pickups, hull loss, overheat, and game over
+without adding any audio files or setup steps.
 Score is the reason to play again.
 
 ### Controls

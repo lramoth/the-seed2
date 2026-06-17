@@ -1397,3 +1397,73 @@ Future Work Enabled:
 - Enhance the player's ship with a futuristic luminous glow.
 - Audio (blaster, enemy fire, kills, thrusters, powerups, hull reduction,
   game-over, and calm gameplay music).
+
+## Generation 18
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-18-1781713154)
+
+Intent:
+Address the Director's highest current pressure: sound effects and calm gameplay
+music. Through Generation 17 the game had strong visual feedback — plasma trails,
+enemy charge tells, muzzle flashes, screen shake, pickup colors, and combo UI —
+but every combat event was silent. The smallest coherent mutation is to add
+procedural audio cues to the existing gameplay moments without adding assets,
+build steps, or new rules.
+
+Mutation:
+Added procedural Web Audio feedback:
+
+- Added `CFG.audio` mix values for master, effects, music, and thrust volumes.
+- Added a lazy Web Audio manager that is created on launch/restart keypress, so
+  browser autoplay rules are respected and no audio files are required.
+- Added a soft looping music pad during play and a restrained thruster hum that
+  fades in only while the player presses movement input.
+- Added short synthesized cues for player shots, spread-fire shots, enemy shots,
+  enemy kills, combo climbs, health pickups, 3X pickups, hull damage, overheat
+  venting, and game over.
+- Hooked audio into the existing event chokepoints (`startGame`, `fire`,
+  `enemyFire`, `scoreKill`, `updatePickups`, `damagePlayer`, and `endGame`) so
+  sound reflects the current gameplay state instead of becoming a parallel
+  system.
+- README and PROJECT_MAP were updated. Run instructions are unchanged: open
+  `index.html` directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This follows the Director's top priority while keeping the generation focused.
+Audio improves moment-to-moment feel and clarity without changing the accepted
+combat rules: the player still reads two fronts, manages heat, chases crates,
+baits crossfire, and builds combos. The cues make those events more satisfying
+and easier to parse — a shot has snap, a pickup feels rewarding, damage warns
+immediately, combo climbs sing, and game over has a distinct falloff — while the
+calm pad keeps the run from feeling empty between bursts. Procedural synthesis
+keeps the game self-contained and reviewable.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Deterministic Node VM runtime assertions passed with no `AudioContext`
+  available, confirming the audio hooks fail gracefully in non-audio
+  environments while launch, normal fire, salvo fire, enemy fire, scoring,
+  pickups, damage, and game over still work.
+- Deterministic Node VM runtime assertions passed with a fake `AudioContext`,
+  exercising the Web Audio path for launch/music, thrust, shots, kills, pickups,
+  hit, overheat, and game-over cues without throwing.
+- Served the folder with `python3 -m http.server 8765 --bind 127.0.0.1`;
+  `curl -I` returned `200 OK` for `/` and `/game.js`.
+
+Effect on Project Direction:
+Adds the first audio layer to the game, making combat feedback felt as well as
+seen while preserving the simple static-page architecture. The procedural audio
+manager gives future generations a lightweight substrate for richer feedback
+without forcing asset management or a build pipeline.
+
+Future Work Enabled:
+- Tune the audio mix and individual cue shapes after playtesting.
+- Add a clearer squadron-arrival or formation-clear stinger if grouped waves need
+  stronger readability.
+- Enhance the player's ship with a futuristic luminous glow.
+- Brighten the HUD fonts further if readability still suffers against the dark
+  field.
