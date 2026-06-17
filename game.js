@@ -1,23 +1,26 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 5
- * Free-flight space combat with blaster heat management.
+ * The Seed 2 — Generation 6
+ * Free-flight space combat where enemy fire burns friend and foe alike.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
- * them. Enemy ships close in from BOTH edges and now return fire: each lobs its
- * own seeking missiles at the player, but slower and turning more lazily than
- * the player's, so they seek for real yet can be out-flown and juked. That
- * moves the threat onto enemy *weapons* — the hull only takes damage from an
- * enemy missile or a ram, never from letting a ship slip off an edge. The fight
- * stays a two-front problem: pick the side that is shooting at you, seek it
- * clear, and dodge the incoming fire while you pivot. The blaster now builds
- * heat as it fires; holding the trigger too long overheats it, forcing a brief
- * vent window that asks for bursts instead of infinite spam. The world only
- * moves when the player moves — a parallax starfield and rolling ground terrain
- * make that self-directed flight legible. Survive as the pressure ramps up.
- * Score is the reason to play again.
+ * them. Enemy ships close in from BOTH edges and return fire: each lobs its own
+ * seeking missiles at the player, but slower and turning more lazily than the
+ * player's, so they seek for real yet can be out-flown and juked. Those enemy
+ * missiles are now indiscriminate — once armed, an enemy missile that strikes
+ * another enemy detonates on it, so the two-front geometry can be turned against
+ * them: slip out of the way and an enemy's shot may gut a ship on the far front.
+ * The threat lives on enemy *weapons* — the hull only takes damage from an enemy
+ * missile or a ram, never from letting a ship slip off an edge. The fight stays
+ * a two-front problem: pick the side that is shooting at you, seek it clear, bait
+ * the crossfire, and dodge the rest while you pivot. The blaster builds heat as
+ * it fires; holding the trigger too long overheats it, forcing a brief vent
+ * window that asks for bursts instead of infinite spam. The world only moves
+ * when the player moves — a parallax starfield and rolling ground terrain make
+ * that self-directed flight legible. Survive as the pressure ramps up. Score is
+ * the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -58,7 +61,9 @@ const CFG = {
 
   // The enemies' weapon: deliberately worse than the player's. Slower and
   // turning roughly half as fast, so its seek is real but easy to out-fly — the
-  // "less accurate" return fire the Director asked for.
+  // "less accurate" return fire the Director asked for. Its fire is also
+  // indiscriminate: once armed it detonates on any ship it strikes, the player
+  // or another enemy.
   enemyMissile: {
     w: 14,
     h: 6,
@@ -66,6 +71,10 @@ const CFG = {
     turnRate: Math.PI * 0.6,
     life: 2.2,
     damage: 14, // hull lost when an enemy missile connects
+    // The missile cannot strike an enemy for this long after launch, so it never
+    // detonates on its own launcher or a neighbor at the muzzle. It can still hit
+    // the player immediately. After it arms, friendly fire is live.
+    armTime: 0.18,
   },
 
   enemy: {
@@ -426,6 +435,7 @@ function enemyFire(e) {
     angle,
     speed: CFG.enemyMissile.speed,
     life: CFG.enemyMissile.life,
+    armTime: CFG.enemyMissile.armTime, // delay before it can strike other enemies
   });
 }
 
@@ -488,8 +498,11 @@ function updateMissiles(dt) {
 
 // Enemy missiles always re-aim at the player, but at a low turn rate (set in
 // CFG.enemyMissile) so they carve wide arcs the player can juke instead of
-// snapping on. They connect for hull damage, then retire on lifetime or by
-// leaving any edge.
+// snapping on. The seek targets the player, but the warhead is indiscriminate:
+// once armed, a missile that overlaps any enemy detonates on it — so dodging out
+// of the way can feed an enemy's shot into a ship on the other front. They
+// connect for hull damage on the player, then retire on lifetime or by leaving
+// any edge.
 function updateEnemyMissiles(dt) {
   const p = state.player;
   const tx = p.x + p.w / 2;
@@ -497,12 +510,35 @@ function updateEnemyMissiles(dt) {
   for (let i = state.enemyMissiles.length - 1; i >= 0; i--) {
     const m = state.enemyMissiles[i];
     m.life -= dt;
+    if (m.armTime > 0) m.armTime -= dt;
 
     const desired = Math.atan2(ty - (m.y + m.h / 2), tx - (m.x + m.w / 2));
     m.angle = steerAngle(m.angle, desired, CFG.enemyMissile.turnRate * dt);
 
     m.x += Math.cos(m.angle) * m.speed * dt;
     m.y += Math.sin(m.angle) * m.speed * dt;
+
+    // Crossfire: an armed enemy missile that catches another enemy guts it. An
+    // intervening ship soaks the shot before it can reach the player, so it is
+    // checked first. The kill scores like any other — baiting it is a real play,
+    // and surviving in the line of fire to set it up is the cost.
+    if (m.armTime <= 0) {
+      let fragged = false;
+      for (let j = state.enemies.length - 1; j >= 0; j--) {
+        const e = state.enemies[j];
+        if (rectsOverlap(m, e)) {
+          state.enemies.splice(j, 1);
+          spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ff5a6e", 14);
+          state.score += CFG.enemy.score;
+          fragged = true;
+          break;
+        }
+      }
+      if (fragged) {
+        state.enemyMissiles.splice(i, 1);
+        continue;
+      }
+    }
 
     if (rectsOverlap(m, p)) {
       state.enemyMissiles.splice(i, 1);
@@ -848,7 +884,7 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Enemies close from both sides and shoot back — seek a front clear, dodge the rest.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Enemies close from both sides and shoot back — their fire burns friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);

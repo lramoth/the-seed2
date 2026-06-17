@@ -118,10 +118,10 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 5
+Generation 6
 
-A free-flight space combat loop where the enemies shoot back and the player's
-blaster can overheat.
+A free-flight space combat loop where the enemies shoot back, their missiles
+burn friend and foe alike, and the player's blaster can overheat.
 
 ### The Game
 
@@ -135,11 +135,14 @@ bar fills, the weapon overheats and briefly vents before it can fire again, so
 controlled bursts keep you dangerous longer than holding Space forever. Enemy
 ships close in from *both* edges at once and *return fire* — each lobs its own
 seeking missiles at you, but slower and turning more lazily than yours, so you
-can out-fly and juke them. That makes the threat your enemies' *weapons*, not
+can out-fly and juke them. Those enemy missiles are *indiscriminate*: once armed,
+one that catches another enemy detonates on it, so dodging out of the way can
+feed an enemy's shot into a ship on the far front — *bait that crossfire* and the
+two-front swarm thins itself. That makes the threat your enemies' *weapons*, not
 their position: your hull only takes damage from an enemy missile or a ram —
 letting a ship slip off an edge costs you nothing. Each run is a two-front
 problem: face the side that's shooting at you, manage blaster heat, seek it
-clear, and dodge the incoming fire while you pivot. At zero hull the run ends.
+clear, bait the crossfire, and dodge the incoming fire while you pivot. At zero hull the run ends.
 The world only moves as you move through it — a parallax starfield and rolling
 ground terrain mark your heading. Score is the reason to play again.
 

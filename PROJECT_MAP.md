@@ -18,9 +18,11 @@ A browser-based, free-flight space combat game. The player pilots a ship across
 the field and faces the direction they fly; firing launches enemy-seeking
 missiles that curve toward the nearest enemy ahead of them, while threats close
 in from both edges and fire their own (deliberately less accurate) seeking
-missiles back. The player's blaster builds heat while firing and briefly locks
-out when overheated, with heat shown in the HUD. The hull only takes damage
-from an enemy missile or a ram. It runs as a single static page with no build
+missiles back. Those enemy missiles are indiscriminate — once armed, one that
+strikes another enemy detonates on it, so the player can bait the two fronts
+into culling each other. The player's blaster builds heat while firing and
+briefly locks out when overheated, with heat shown in the HUD. The hull only
+takes damage from an enemy missile or a ram. It runs as a single static page with no build
 step, no dependencies, and no server requirement — opening `index.html` is
 enough to play.
 
@@ -65,8 +67,10 @@ The file is organized top-to-bottom into clear sections:
   return fire on a per-ship cooldown (`enemyFire`); a ship leaving either edge
   (`offscreenX`) is simply removed — breaches are harmless. Enemy missiles
   re-aim at the player every frame at a lower turn rate (`updateEnemyMissiles`,
-  reusing `steerAngle`), so they seek but stay dodgeable. The hull only loses
-  health to an enemy missile or a ram.
+  reusing `steerAngle`), so they seek but stay dodgeable; after a short arming
+  delay (`CFG.enemyMissile.armTime`) they also detonate on — and score — any
+  enemy they strike, so their crossfire can be turned against the swarm. The hull
+  only loses health to an enemy missile or a ram.
 - **Render** — Draws the movement-driven parallax starfield, rolling ground
   terrain, entities, particle effects, HUD (score, best, hull, blaster heat),
   and the ready / game-over overlays. Player and enemy ships are drawn in a

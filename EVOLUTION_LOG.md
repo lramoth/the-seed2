@@ -402,3 +402,88 @@ Future Work Enabled:
   multi-missile salvos
 - Audio / visual feedback for near-overheat, venting, and rearm moments
 - Enemy or hazard variants that pressure the player into deliberate burst timing
+
+## Generation 6
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-6-1781657772)
+
+Intent:
+Make enemy fire indiscriminate, implementing the Director's playtesting note
+"Enemy missiles should be able to kill other enemies." Through Generation 5 the
+enemies' seeking missiles only ever threatened the player. This note is the
+first unaddressed item the existing systems already support — Generation 4 built
+the `enemyMissiles` array and per-frame collision, so the highest-value mutation
+is to let that same fire also strike enemies, turning the lineage's signature
+two-front geometry into something the player can exploit instead of only endure.
+
+Mutation:
+Enemy missiles now detonate on enemies as well as the player — one coherent
+change to who their fire hurts, reusing the existing update path with no new
+subsystem:
+
+- After a short arming delay (`CFG.enemyMissile.armTime`, 0.18s), an enemy
+  missile that overlaps any enemy destroys that enemy, scores like a normal kill,
+  and is consumed. The arming delay is the only new field; it exists so a
+  freshly-launched missile cannot detonate on its own launcher or a neighbor at
+  the muzzle. It does not delay damage to the player.
+- An intervening enemy is checked before the player, so a ship caught between the
+  missile and the player soaks the shot — enemies can body-block their own fire.
+- The seek itself is unchanged: enemy missiles still home only on the player at
+  their deliberately lazy turn rate. Crossfire is therefore incidental unless the
+  player baits it by positioning, which keeps it from trivializing the fight.
+- The crossfire kill bursts in the enemy-missile red palette (`#ff5a6e`) instead
+  of the gold of a player kill, so the cause of the explosion reads at a glance.
+- A ready-screen line, the README "The Game" narrative, and PROJECT_MAP were
+  updated to describe the indiscriminate fire. Plasma-orb enemy visuals,
+  power-ups, momentum/edge-buffer, and audio were left for separate generations
+  to keep this a single idea.
+
+Rationale:
+This implements a named Director note while *reinforcing* the accepted lineage
+rather than fighting it. Generations 2–4 made "which front do I face?" the core
+decision; crossfire adds a second axis to it — the enemies' positions relative to
+*each other* now matter, because you can slip aside and feed one front's shot
+into the other. It is purely additive (no control or damage-model change for the
+player), so it carries little risk of making the game feel worse, and surviving
+in the line of fire to set up a bait is its own cost. Scoring the kill makes the
+crossfire a play the player pursues — an "interesting decision," per the
+Director's optimization targets — rather than a neutral curiosity. All new
+behavior is one tunable value in `CFG`.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play.
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed:
+  - An armed enemy missile overlapping an enemy destroyed it, added exactly
+    `CFG.enemy.score` (100), was consumed, and left the player's hull untouched.
+  - Arming gate: an enemy missile still within its `armTime` overlapping an enemy
+    did NOT destroy it (enemy alive, no score), confirming the muzzle-safety gate.
+  - Regression: an armed enemy missile overlapping the player still dealt exactly
+    `CFG.enemyMissile.damage` (14) and was consumed.
+  - Ordering: a missile overlapping both an enemy and the player detonated on the
+    enemy and left the player unharmed — an interposing ship shields the player.
+  - Config sanity: `CFG.enemyMissile.armTime` is a positive number (0.18).
+- Visual confirmation: a staged, frozen frame showed the player firing gold
+  missiles right while a red enemy missile fragged a right-front enemy — the
+  crossfire burst rendering in enemy-red, clearly distinct from a gold player
+  kill — with the score reflecting the +100.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Turns the two-front swarm from a pure threat into a system the player can
+manipulate, deepening the established facing decision without adding controls,
+menus, or hidden rules. Enemy missiles are now a field hazard to every ship,
+which is reusable substrate for denser formations, enemy variety, or hazards that
+lean on friendly fire.
+
+Future Work Enabled:
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Power-ups (health pickups; multi-missile salvos) and a duration bar
+- Movement feel: edge buffer and momentum
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Tuning `armTime` and spawn density so crossfire is a frequent-enough reward
