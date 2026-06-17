@@ -88,9 +88,27 @@ A weak mutation:
 - Prioritizes technical novelty over player experience
 - Solves a problem the player does not have
 
+## Director Priority
+
+Director guidance represents the current selection pressure for the project.
+
+Agents should not avoid high-priority gameplay directions solely because they require significant refactoring.
+
+If the current architecture prevents an important gameplay improvement, a mutation may restructure the code to enable that improvement.
+
+When doing so:
+
+- Keep the rewrite focused on the gameplay goal.
+- Avoid unrelated cleanup.
+- Preserve or improve playability.
+- Explain why the rewrite was necessary.
+- Update README.md, PROJECT_MAP.md, and EVOLUTION_LOG.md as appropriate.
+
+A large change is acceptable when it directly enables a high-priority gameplay improvement.
+
 ## Scope
 
-Prefer small, reviewable changes.
+Prefer small, reviewable changes unless a higher-priority gameplay goal requires a focused structural change.
 
 A generation should usually focus on one idea.
 
