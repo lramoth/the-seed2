@@ -1,8 +1,8 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 4
- * Free-flight space combat where the enemies shoot back.
+ * The Seed 2 — Generation 5
+ * Free-flight space combat with blaster heat management.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
@@ -12,10 +12,12 @@
  * moves the threat onto enemy *weapons* — the hull only takes damage from an
  * enemy missile or a ram, never from letting a ship slip off an edge. The fight
  * stays a two-front problem: pick the side that is shooting at you, seek it
- * clear, and dodge the incoming fire while you pivot. The world only moves when
- * the player moves — a parallax starfield and rolling ground terrain make that
- * self-directed flight legible. Survive as the pressure ramps up. Score is the
- * reason to play again.
+ * clear, and dodge the incoming fire while you pivot. The blaster now builds
+ * heat as it fires; holding the trigger too long overheats it, forcing a brief
+ * vent window that asks for bursts instead of infinite spam. The world only
+ * moves when the player moves — a parallax starfield and rolling ground terrain
+ * make that self-directed flight legible. Survive as the pressure ramps up.
+ * Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -38,6 +40,9 @@ const CFG = {
     h: 24,
     speed: 340, // px/sec
     fireCooldown: 0.16, // seconds between shots
+    heatPerShot: 0.1,
+    heatCoolRate: 0.34, // heat cleared per second while the blaster vents
+    overheatRelease: 0.38, // heat level where an overheated blaster comes back
     maxHull: 100,
   },
 
@@ -208,6 +213,8 @@ function newState() {
       facing: 1, // +1 faces/fires right, -1 faces/fires left
       cooldown: 0,
       hull: CFG.player.maxHull,
+      heat: 0,
+      overheated: false,
       flash: 0, // brief hit flash timer
       muzzle: 0, // muzzle flash timer
     },
@@ -368,10 +375,16 @@ function updatePlayer(dt) {
   state.scrollDX = p.x - prevX; // how far we actually flew this frame
 
   if (p.cooldown > 0) p.cooldown -= dt;
+  if (p.heat > 0) {
+    p.heat = Math.max(0, p.heat - CFG.player.heatCoolRate * dt);
+  }
+  if (p.overheated && p.heat <= CFG.player.overheatRelease) {
+    p.overheated = false;
+  }
   if (p.flash > 0) p.flash -= dt;
   if (p.muzzle > 0) p.muzzle -= dt;
 
-  if (isDown(...FIRE_KEYS) && p.cooldown <= 0) {
+  if (isDown(...FIRE_KEYS) && p.cooldown <= 0 && !p.overheated) {
     fire();
     p.cooldown = CFG.player.fireCooldown;
   }
@@ -392,6 +405,8 @@ function fire() {
     speed: CFG.missile.speed,
     life: CFG.missile.life,
   });
+  p.heat = clamp(p.heat + CFG.player.heatPerShot, 0, 1);
+  if (p.heat >= 1) p.overheated = true;
   p.muzzle = 0.06;
 }
 
@@ -797,6 +812,24 @@ function drawHUD() {
   ctx.font = "11px 'Courier New', monospace";
   ctx.textAlign = "left";
   ctx.fillText("HULL", bx, by - 4);
+
+  // Blaster heat bar. Continuous fire fills it; red means the weapon is venting.
+  const heatY = by + 28;
+  const heatFrac = state.player ? clamp(state.player.heat, 0, 1) : 0;
+  ctx.fillStyle = "#1a2440";
+  ctx.fillRect(bx, heatY, barW, barH);
+  ctx.fillStyle = state.player.overheated
+    ? "#ff4d4d"
+    : heatFrac > 0.72
+      ? "#ffd23c"
+      : "#36d7ff";
+  ctx.fillRect(bx, heatY, barW * heatFrac, barH);
+  ctx.strokeStyle = "#2a3a66";
+  ctx.strokeRect(bx, heatY, barW, barH);
+  ctx.fillStyle = state.player.overheated ? "#ff7a8f" : "#5e6b8c";
+  ctx.font = "11px 'Courier New', monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(state.player.overheated ? "VENTING" : "HEAT", bx, heatY - 4);
 }
 
 function drawCenteredText(lines) {
@@ -816,7 +849,7 @@ function drawReadyScreen() {
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
     { text: "Enemies close from both sides and shoot back — seek a front clear, dodge the rest.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
-    { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   You face where you fly", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
+    { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);
 }

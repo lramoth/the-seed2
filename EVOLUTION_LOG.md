@@ -340,3 +340,65 @@ Future Work Enabled:
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Enemy variety: telegraphed shots, burst fire, or aimed-vs-lead firing
 - Tuning enemy fire rate / missile speed / turn rate against spawn pacing via `CFG`
+
+## Generation 5
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-5-1781656390)
+
+Intent:
+Add a small firing decision to the current weapon loop. Generation 4 made the
+fight a duel of seeking missiles, but the player could still hold Space forever.
+DIRECTOR.md explicitly asks for player blaster overheat and a HUD indicator, and
+that request fits the existing two-front combat without adding a new subsystem.
+
+Mutation:
+Added blaster heat management:
+
+- Each player missile adds heat to the blaster.
+- Heat cools continuously while playing.
+- Filling the heat bar overheats the blaster, preventing shots until it vents
+  below a release threshold.
+- The HUD now shows a second bar under HULL: HEAT during normal firing, VENTING
+  in red while locked out.
+- Ready-screen copy, README, and PROJECT_MAP were updated to describe the heat
+  behavior. Run instructions are unchanged: open `index.html` directly, or serve
+  the folder and visit it in a browser.
+
+Rationale:
+This makes the current missile loop more interesting with one readable question:
+do you hold fire for a fast clear now, or feather bursts so the weapon stays
+online when enemy missiles arrive? It supports the Director's desire for an
+overheat feature while preserving the accepted Generation 2-4 decisions: facing
+still chooses the front, homing still forgives vertical drift, and enemies are
+still dangerous because they shoot back. The values live in `CFG.player`, so the
+pressure can be tuned without changing the structure.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Loaded the game through a local static server at `http://127.0.0.1:8765/`;
+  confirmed the 960x540 canvas loads and the browser console has no errors.
+- Live canvas check confirmed the new HEAT / VENTING HUD bar renders alongside
+  HULL during play.
+- Deterministic runtime simulation with a stubbed canvas passed:
+  - Holding Space overheated the blaster after 211 frames / 22 shots.
+  - While overheated, 30 more frames of held Space fired no additional shots.
+  - After venting for 80 frames, the blaster rearmed below the configured release
+    threshold.
+  - A rearmed blaster fired again and added heat.
+
+Effect on Project Direction:
+Adds a lightweight resource-management pressure directly to moment-to-moment
+combat. The player now has a reason to burst fire, pause, and time shots around
+enemy missile pressure, which makes the existing weapon duel more expressive
+without introducing menus, ammo pickups, or hidden rules.
+
+Future Work Enabled:
+- Heat tuning against spawn rate and enemy missile pressure
+- Powerups that temporarily widen heat capacity, improve cooling, or fire
+  multi-missile salvos
+- Audio / visual feedback for near-overheat, venting, and rearm moments
+- Enemy or hazard variants that pressure the player into deliberate burst timing
