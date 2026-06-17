@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 13
+ * The Seed 2 — Generation 14
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
@@ -31,12 +31,14 @@
  * to break formation and cross the fire to reach it before it sinks past the
  * ground. Some crates are instead a gold "3X" weapon boost — catch one and every
  * trigger pull fires a homing spread for a few seconds, shown by a countdown bar
- * under the ship. The starfield and ground are stable combat references now, so
- * enemies, crates, missiles, and the background no longer appear to disagree
- * about how the field is moving while you dodge. Survive as the pressure ramps
- * up. Chaining kills before a short window lapses builds a score-multiplier
- * streak, so pressing the attack is worth more than picking ships off one at a
- * time. Score is the reason to play again.
+ * under the ship. The patrol sector is twenty screens wide, with one shared
+ * camera/world frame for the ship, enemies, crates, missiles, stars, ground, and
+ * small terrain structures. Flying horizontally scrolls that whole world
+ * together instead of putting the background in a different motion frame, so the
+ * battlefield finally feels long without reviving the old parallax confusion.
+ * Survive as the pressure ramps up. Chaining kills before a short window lapses
+ * builds a score-multiplier streak, so pressing the attack is worth more than
+ * picking ships off one at a time. Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -52,6 +54,9 @@ const CFG = {
   // collision surface. The player and enemies fly in the sky above it.
   world: {
     groundHeight: 70,
+    screens: 20,
+    despawnMargin: 160,
+    structuresPerScreen: 3,
   },
 
   player: {
@@ -198,18 +203,18 @@ function randRange(lo, hi) {
 }
 
 // A ship has fully left the playfield through either the left or right edge.
-function offscreenX(rect, width) {
-  return rect.x + rect.w < 0 || rect.x > width;
+function offscreenX(rect, width, cameraX = 0, margin = 0) {
+  return rect.x + rect.w < cameraX - margin || rect.x > cameraX + width + margin;
 }
 
 // A rect has fully left the playfield through any of the four edges. Missiles
 // can curve off the top or bottom, so they need the full test, not just X.
-function offscreen(rect, width, height) {
+function offscreen(rect, width, height, cameraX = 0, margin = 0) {
   return (
-    rect.x + rect.w < 0 ||
-    rect.x > width ||
-    rect.y + rect.h < 0 ||
-    rect.y > height
+    rect.x + rect.w < cameraX - margin ||
+    rect.x > cameraX + width + margin ||
+    rect.y + rect.h < -margin ||
+    rect.y > height + margin
   );
 }
 
@@ -236,12 +241,36 @@ function playBottom() {
   return CFG.height - CFG.world.groundHeight;
 }
 
+function worldWidth() {
+  return CFG.width * CFG.world.screens;
+}
+
+function worldToScreenX(x, cameraX) {
+  return x - cameraX;
+}
+
+function groundY(worldX) {
+  return playBottom() + Math.sin(worldX * 0.012) * 10 + Math.sin(worldX * 0.031) * 6;
+}
+
 // The inclusive horizontal range the player's top-left x may occupy. The ship is
 // held a `buffer` fraction of the field away from each edge so threats closing
 // from either side are visible before they arrive.
 function playerBoundsX(width, w, buffer) {
   const margin = width * buffer;
   return { lo: margin, hi: width - margin - w };
+}
+
+// Move the camera only when the player would leave the safe center band. That
+// preserves the accepted edge-buffer feel while still allowing a long patrol
+// sector: hold a direction and the whole shared world scrolls together.
+function cameraForPlayer(playerX, playerW, cameraX, width, worldW, buffer) {
+  const bounds = playerBoundsX(width, playerW, buffer);
+  const screenPlayerX = playerX - cameraX;
+  let nextCameraX = cameraX;
+  if (screenPlayerX < bounds.lo) nextCameraX = playerX - bounds.lo;
+  else if (screenPlayerX > bounds.hi) nextCameraX = playerX - bounds.hi;
+  return clamp(nextCameraX, 0, Math.max(0, worldW - width));
 }
 
 // Symmetric angular offsets for a salvo of `count` missiles, `spread` radians
@@ -315,58 +344,79 @@ function isDown(...codes) {
 let state;
 
 function newState() {
+  const ww = worldWidth();
+  const player = {
+    x: ww / 2 - CFG.player.w / 2,
+    y: CFG.height / 2 - CFG.player.h / 2,
+    w: CFG.player.w,
+    h: CFG.player.h,
+    vx: 0, // current velocity (px/sec) — momentum carries between frames
+    vy: 0,
+    facing: 1, // +1 faces/fires right, -1 faces/fires left
+    cooldown: 0,
+    hull: CFG.player.maxHull,
+    heat: 0,
+    overheated: false,
+    salvo: 0, // seconds of "3X" spread-fire boost remaining (0 = off)
+    flash: 0, // brief hit flash timer
+    heal: 0, // brief heal flash timer (green) when a crate is grabbed
+    muzzle: 0, // muzzle flash timer
+  };
+
   return {
     phase: "ready", // "ready" | "playing" | "gameover"
     time: 0,
     score: 0,
     best: state ? state.best : 0,
     shake: 0,
+    cameraX: clamp(player.x + player.w / 2 - CFG.width / 2, 0, ww - CFG.width),
     spawnTimer: 0,
     combo: 0, // current kill-streak length (0 = no active streak)
     comboTimer: 0, // seconds left to chain the next kill before the streak resets
     comboFlash: 0, // brief pop when the multiplier ticks up
     pickupTimer: randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax),
-    player: {
-      x: CFG.width / 2 - CFG.player.w / 2,
-      y: CFG.height / 2 - CFG.player.h / 2,
-      w: CFG.player.w,
-      h: CFG.player.h,
-      vx: 0, // current velocity (px/sec) — momentum carries between frames
-      vy: 0,
-      facing: 1, // +1 faces/fires right, -1 faces/fires left
-      cooldown: 0,
-      hull: CFG.player.maxHull,
-      heat: 0,
-      overheated: false,
-      salvo: 0, // seconds of "3X" spread-fire boost remaining (0 = off)
-      flash: 0, // brief hit flash timer
-      heal: 0, // brief heal flash timer (green) when a crate is grabbed
-      muzzle: 0, // muzzle flash timer
-    },
+    player,
     missiles: [],
     enemyMissiles: [],
     enemies: [],
     pickups: [],
     particles: [],
     stars: makeStars(),
+    structures: makeStructures(),
   };
 }
 
 function makeStars() {
   const stars = [];
-  // A single stable starfield keeps the combat frame readable. Earlier
+  // A single shared world starfield keeps the combat frame readable. Earlier
   // parallax layers implied that the background moved differently from enemies
-  // and pickups; now the stars provide atmosphere without competing with them.
-  for (let i = 0; i < 88; i++) {
+  // and pickups; now the stars are long-world landmarks in the same camera frame
+  // as every gameplay object.
+  for (let i = 0; i < 88 * CFG.world.screens; i++) {
     const bright = Math.random();
     stars.push({
-      x: Math.random() * CFG.width,
+      x: Math.random() * worldWidth(),
       y: Math.random() * CFG.height,
       size: bright > 0.82 ? 2 : bright > 0.48 ? 1.5 : 1,
       alpha: lerp(0.3, 0.85, bright),
     });
   }
   return stars;
+}
+
+function makeStructures() {
+  const structures = [];
+  const count = CFG.world.screens * CFG.world.structuresPerScreen;
+  for (let i = 0; i < count; i++) {
+    structures.push({
+      x: randRange(80, worldWidth() - 80),
+      w: randRange(18, 42),
+      h: randRange(16, 48),
+      kind: Math.random() < 0.55 ? "mast" : "dome",
+      light: Math.random() < 0.5 ? "#36d7ff" : "#ffd23c",
+    });
+  }
+  return structures.sort((a, b) => a.x - b.x);
 }
 
 function startGame() {
@@ -387,10 +437,11 @@ function currentSpawnInterval() {
 function spawnEnemy() {
   const speedRamp = clamp(state.time / CFG.spawn.rampSeconds, 0, 1);
   const maxSpeed = lerp(CFG.enemy.maxSpeed, CFG.enemy.maxSpeed + 90, speedRamp);
-  // Threats close in from either edge. dir is the direction they travel.
+  // Threats close in from either visible edge of the camera. dir is the
+  // direction they travel through the shared world.
   const fromLeft = Math.random() < 0.5;
   state.enemies.push({
-    x: fromLeft ? -CFG.enemy.w : CFG.width + CFG.enemy.w,
+    x: fromLeft ? state.cameraX - CFG.enemy.w : state.cameraX + CFG.width + CFG.enemy.w,
     y: randRange(20, playBottom() - CFG.enemy.h - 20),
     w: CFG.enemy.w,
     h: CFG.enemy.h,
@@ -414,7 +465,7 @@ function spawnEnemy() {
 // Most crates restore hull; some are the rarer "3X" weapon boost.
 function spawnPickup() {
   const bounds = playerBoundsX(CFG.width, CFG.pickup.w, CFG.player.edgeBuffer);
-  const baseX = randRange(bounds.lo, bounds.hi);
+  const baseX = state.cameraX + randRange(bounds.lo, bounds.hi);
   state.pickups.push({
     kind: Math.random() < CFG.pickup.salvoChance ? "salvo" : "health",
     baseX, // sway oscillates around this
@@ -539,15 +590,24 @@ function updatePlayer(dt) {
     p.vy *= k;
   }
 
-  // Integrate, then clamp inside the field. Hitting a bound kills that axis's
-  // velocity so momentum doesn't pin the ship against the wall.
-  const bounds = playerBoundsX(CFG.width, p.w, CFG.player.edgeBuffer);
+  // Integrate, then clamp inside the long world. Hitting the far ends kills that
+  // axis's velocity so momentum doesn't pin the ship against the boundary. The
+  // viewport edge buffer is enforced by the camera below, not by trapping the
+  // player in one screen.
   const nextX = p.x + p.vx * dt;
-  p.x = clamp(nextX, bounds.lo, bounds.hi);
+  p.x = clamp(nextX, 0, worldWidth() - p.w);
   if (p.x !== nextX) p.vx = 0;
   const nextY = p.y + p.vy * dt;
   p.y = clamp(nextY, 0, playBottom() - p.h);
   if (p.y !== nextY) p.vy = 0;
+  state.cameraX = cameraForPlayer(
+    p.x,
+    p.w,
+    state.cameraX,
+    CFG.width,
+    worldWidth(),
+    CFG.player.edgeBuffer
+  );
 
   if (p.cooldown > 0) p.cooldown -= dt;
   if (p.heat > 0) {
@@ -704,7 +764,10 @@ function updateMissiles(dt) {
     m.x += Math.cos(m.angle) * m.speed * dt;
     m.y += Math.sin(m.angle) * m.speed * dt;
 
-    if (m.life <= 0 || offscreen(m, CFG.width, CFG.height)) {
+    if (
+      m.life <= 0 ||
+      offscreen(m, CFG.width, CFG.height, state.cameraX, CFG.world.despawnMargin)
+    ) {
       state.missiles.splice(i, 1);
     }
   }
@@ -760,7 +823,10 @@ function updateEnemyMissiles(dt) {
       continue;
     }
 
-    if (m.life <= 0 || offscreen(m, CFG.width, CFG.height)) {
+    if (
+      m.life <= 0 ||
+      offscreen(m, CFG.width, CFG.height, state.cameraX, CFG.world.despawnMargin)
+    ) {
       state.enemyMissiles.splice(i, 1);
     }
   }
@@ -777,7 +843,7 @@ function updateEnemies(dt) {
 
     // Slipping off either edge is now harmless — the threat is enemy fire, not
     // position, so an uncleared ship simply leaves the field.
-    if (offscreenX(e, CFG.width)) {
+    if (offscreenX(e, CFG.width, state.cameraX, CFG.world.despawnMargin)) {
       state.enemies.splice(i, 1);
       continue;
     }
@@ -808,7 +874,11 @@ function updateEnemies(dt) {
 
     // Still alive and fully on the field — return fire on this ship's cooldown.
     e.fireCooldown -= dt;
-    if (e.fireCooldown <= 0 && e.x > 0 && e.x + e.w < CFG.width) {
+    if (
+      e.fireCooldown <= 0 &&
+      e.x > state.cameraX &&
+      e.x + e.w < state.cameraX + CFG.width
+    ) {
       enemyFire(e);
       e.fireFlash = CFG.enemy.fireFlashTime;
       e.fireCooldown = randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax);
@@ -855,6 +925,7 @@ function render() {
 
   drawStars();
   drawGround();
+  drawStructures();
   drawParticles();
 
   if (state.phase !== "ready") {
@@ -877,22 +948,23 @@ function render() {
 
 function drawStars() {
   for (const s of state.stars) {
+    const sx = worldToScreenX(s.x, state.cameraX);
+    if (sx < -3 || sx > CFG.width + 3) continue;
     ctx.globalAlpha = s.alpha;
     ctx.fillStyle = "#9fd6ff";
-    ctx.fillRect(s.x, s.y, s.size, s.size);
+    ctx.fillRect(sx, s.y, s.size, s.size);
   }
   ctx.globalAlpha = 1;
 }
 
-// Distant terrain along the bottom. Two layered sine waves give a stable ridge
-// that anchors the combat frame without sliding separately from enemies/crates.
+// Distant terrain along the bottom. Two layered sine waves are sampled in world
+// coordinates, so the ridge scrolls in the same camera frame as enemies/crates.
 function drawGround() {
-  const top = playBottom();
   ctx.fillStyle = "#0a1226";
   ctx.beginPath();
   ctx.moveTo(0, CFG.height);
   for (let x = 0; x <= CFG.width; x += 8) {
-    const y = top + Math.sin(x * 0.012) * 10 + Math.sin(x * 0.031) * 6;
+    const y = groundY(state.cameraX + x);
     ctx.lineTo(x, y);
   }
   ctx.lineTo(CFG.width, CFG.height);
@@ -904,18 +976,64 @@ function drawGround() {
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = 0; x <= CFG.width; x += 8) {
-    const y = top + Math.sin(x * 0.012) * 10 + Math.sin(x * 0.031) * 6;
+    const y = groundY(state.cameraX + x);
     if (x === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
   ctx.stroke();
 }
 
+function drawStructures() {
+  for (const s of state.structures) {
+    const sx = worldToScreenX(s.x, state.cameraX);
+    if (sx < -80 || sx > CFG.width + 80) continue;
+    const baseY = groundY(s.x);
+    const w = s.w;
+    const h = s.h;
+
+    ctx.save();
+    ctx.translate(sx, baseY);
+    ctx.fillStyle = "rgba(16, 28, 52, 0.95)";
+    ctx.strokeStyle = "rgba(90, 150, 200, 0.38)";
+    ctx.lineWidth = 1;
+
+    if (s.kind === "mast") {
+      ctx.fillRect(-w * 0.12, -h, w * 0.24, h);
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.45, -h * 0.7);
+      ctx.lineTo(0, -h);
+      ctx.lineTo(w * 0.45, -h * 0.7);
+      ctx.stroke();
+      ctx.shadowColor = s.light;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = s.light;
+      ctx.beginPath();
+      ctx.arc(0, -h - 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(0, -h * 0.18, w * 0.5, h * 0.36, 0, Math.PI, 0);
+      ctx.lineTo(w * 0.5, 0);
+      ctx.lineTo(-w * 0.5, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(54, 215, 255, 0.45)";
+      ctx.fillRect(-w * 0.22, -h * 0.24, w * 0.44, 2);
+    }
+
+    ctx.restore();
+  }
+}
+
 function drawParticles() {
   for (const p of state.particles) {
+    const sx = worldToScreenX(p.x, state.cameraX);
+    if (sx < -20 || sx > CFG.width + 20) continue;
     ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    ctx.fillRect(sx - p.size / 2, p.y - p.size / 2, p.size, p.size);
   }
   ctx.globalAlpha = 1;
 }
@@ -926,7 +1044,7 @@ function drawParticles() {
 // so incoming fire is easy to tell from your own at a glance.
 function drawMissileSprite(m, exhaust, body, glow) {
   ctx.save();
-  ctx.translate(m.x + m.w / 2, m.y + m.h / 2);
+  ctx.translate(worldToScreenX(m.x, state.cameraX) + m.w / 2, m.y + m.h / 2);
   ctx.rotate(m.angle); // body and exhaust point the way the missile flies
 
   // Exhaust plume trailing behind the nose sells motion and heading.
@@ -965,7 +1083,9 @@ const PICKUP_SKIN = {
 function drawPickups() {
   for (const c of state.pickups) {
     const skin = PICKUP_SKIN[c.kind] || PICKUP_SKIN.health;
-    const cx = c.x + c.w / 2;
+    const sx = worldToScreenX(c.x, state.cameraX);
+    if (sx < -80 || sx > CFG.width + 80) continue;
+    const cx = sx + c.w / 2;
     const top = c.y;
     const chuteW = c.w * 1.9;
     const chuteH = c.h * 0.95;
@@ -976,9 +1096,9 @@ function drawPickups() {
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cx - chuteW / 2, chuteY + chuteH);
-    ctx.lineTo(c.x, top);
+    ctx.lineTo(sx, top);
     ctx.moveTo(cx + chuteW / 2, chuteY + chuteH);
-    ctx.lineTo(c.x + c.w, top);
+    ctx.lineTo(sx + c.w, top);
     ctx.moveTo(cx, chuteY + chuteH);
     ctx.lineTo(cx, top);
     ctx.stroke();
@@ -997,12 +1117,12 @@ function drawPickups() {
 
     // Crate body with a glowing border.
     ctx.fillStyle = skin.box;
-    ctx.fillRect(c.x, c.y, c.w, c.h);
+    ctx.fillRect(sx, c.y, c.w, c.h);
     ctx.strokeStyle = skin.glow;
     ctx.lineWidth = 2;
     ctx.shadowColor = skin.glow;
     ctx.shadowBlur = 8;
-    ctx.strokeRect(c.x, c.y, c.w, c.h);
+    ctx.strokeRect(sx, c.y, c.w, c.h);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = skin.glow;
@@ -1015,8 +1135,8 @@ function drawPickups() {
       ctx.textBaseline = "alphabetic";
     } else {
       // Health cross.
-      ctx.fillRect(c.x + c.w * 0.4, c.y + c.h * 0.22, c.w * 0.2, c.h * 0.56);
-      ctx.fillRect(c.x + c.w * 0.2, c.y + c.h * 0.4, c.w * 0.6, c.h * 0.2);
+      ctx.fillRect(sx + c.w * 0.4, c.y + c.h * 0.22, c.w * 0.2, c.h * 0.56);
+      ctx.fillRect(sx + c.w * 0.2, c.y + c.h * 0.4, c.w * 0.6, c.h * 0.2);
     }
   }
 }
@@ -1041,7 +1161,7 @@ function drawPlayer() {
   // Draw in a local frame centered on the ship, mirrored to face its heading,
   // so the nose, thruster, and muzzle all point the way the player is flying.
   ctx.save();
-  ctx.translate(p.x + hw, p.y + hh);
+  ctx.translate(worldToScreenX(p.x, state.cameraX) + hw, p.y + hh);
   ctx.scale(p.facing, 1);
 
   // Thruster flame flickers behind the ship.
@@ -1093,7 +1213,7 @@ function drawSalvoBar() {
   const frac = clamp(p.salvo / CFG.salvo.duration, 0, 1);
   const w = p.w;
   const h = 4;
-  const x = p.x;
+  const x = worldToScreenX(p.x, state.cameraX);
   const y = p.y + p.h + 8;
   ctx.fillStyle = "rgba(20, 24, 40, 0.85)";
   ctx.fillRect(x, y, w, h);
@@ -1112,11 +1232,13 @@ function drawSalvoBar() {
 function drawEnemies() {
   const PUFFS = 6;
   for (const e of state.enemies) {
-    const cx = e.x + e.w / 2;
+    const sx = worldToScreenX(e.x, state.cameraX);
+    if (sx < -120 || sx > CFG.width + 120) continue;
+    const cx = sx + e.w / 2;
     const cy = e.y + e.h / 2;
     const r = e.h * 0.5; // bright core radius, ~ the hitbox
     const hue = cycleHue(e.hue, state.time, e.hueRate);
-    const fullyOnField = e.x > 0 && e.x + e.w < CFG.width;
+    const fullyOnField = e.x > state.cameraX && e.x + e.w < state.cameraX + CFG.width;
     const warn = fullyOnField
       ? clamp(1 - e.fireCooldown / CFG.enemy.fireWarnTime, 0, 1)
       : 0;
@@ -1175,7 +1297,7 @@ function drawEnemies() {
       const charge = Math.max(warn, flash);
       const pulse = 0.65 + Math.sin(state.time * 36) * 0.35;
       const player = state.player;
-      const ax = player.x + player.w / 2 - cx;
+      const ax = player.x + player.w / 2 - (e.x + e.w / 2);
       const ay = player.y + player.h / 2 - cy;
       const alen = Math.hypot(ax, ay) || 1;
       const uxAim = ax / alen;
@@ -1218,6 +1340,29 @@ function drawHUD() {
   ctx.textAlign = "right";
   ctx.fillStyle = "#5e6b8c";
   ctx.fillText("BEST " + String(state.best).padStart(6, "0"), CFG.width - 16, 30);
+
+  // A compact position readout makes the long patrol sector legible without
+  // adding a new objective: score is still the chase, but the world now has
+  // visible length and place.
+  const worldFrac = state.player
+    ? clamp((state.player.x + state.player.w / 2) / worldWidth(), 0, 1)
+    : 0;
+  const sector = clamp(Math.floor(worldFrac * CFG.world.screens) + 1, 1, CFG.world.screens);
+  const navW = 150;
+  const navH = 4;
+  const navX = CFG.width - 16 - navW;
+  const navY = 44;
+  ctx.fillStyle = "#5e6b8c";
+  ctx.font = "11px 'Courier New', monospace";
+  ctx.fillText(
+    "SECTOR " + String(sector).padStart(2, "0") + "/" + CFG.world.screens,
+    CFG.width - 16,
+    navY - 5
+  );
+  ctx.fillStyle = "#1a2440";
+  ctx.fillRect(navX, navY, navW, navH);
+  ctx.fillStyle = "#36d7ff";
+  ctx.fillRect(navX, navY, navW * worldFrac, navH);
 
   // Kill-streak multiplier — shown top-center only while a bonus streak is live
   // (multiplier above x1), with a shrinking bar for the window left to chain the
@@ -1297,7 +1442,7 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Enemies close from both sides and flare before firing — their shots burn friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Patrol a 20-screen sector while enemies flare before firing from both sides.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
     { text: "Catch green crates to patch your hull — and gold 3X crates for a burst of spread fire.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
@@ -1345,7 +1490,11 @@ if (typeof window !== "undefined") {
     offscreen,
     angleDelta,
     steerAngle,
+    worldWidth,
+    worldToScreenX,
+    groundY,
     playerBoundsX,
+    cameraForPlayer,
     salvoOffsets,
     cycleHue,
     comboMultiplier,

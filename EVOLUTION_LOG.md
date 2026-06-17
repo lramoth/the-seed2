@@ -1098,3 +1098,78 @@ Future Work Enabled:
 - Redesign the ship as an alien UAP with strobing lights — the deferred Director note
 - Build random small structures on the fixed terrain ridge — the deferred Director note
 - Convert canvas HUD text to brighter sans-serif styling — the deferred Director note
+
+## Generation 14
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-14-1781675986)
+
+Intent:
+Address the Director's highest current pressure: "The player's world should
+appear at least 20 screens in length." Generation 12 intentionally removed
+confusing background parallax and left a note that any long world should use one
+shared world/camera coordinate system. The smallest coherent gameplay mutation is
+to make the accepted two-front combat happen inside a real long patrol sector
+without bringing back separate motion frames.
+
+Mutation:
+Added a 20-screen shared world/camera frame:
+
+- Player, enemies, missiles, enemy missiles, pickups, particles, stars, ground,
+  and terrain structures now use world-space x coordinates and render through
+  one camera.
+- The player starts near the middle of a 20-screen patrol sector. Horizontal
+  thrust moves through that sector; `cameraForPlayer` keeps the ship inside the
+  accepted central safe band so enemies entering from visible edges remain
+  readable.
+- Enemies still spawn from the visible left/right camera edges and move in their
+  signed travel direction, preserving the two-front combat loop.
+- Crates spawn within the current camera band, then remain world objects while
+  they fall and sway.
+- The starfield and ground ridge now span the full sector and scroll in the same
+  frame as gameplay entities. Sparse terrain structures sit on the ridge as
+  landmarks, making the world length visible without adding a new objective.
+- The HUD adds a compact `SECTOR NN/20` readout and position bar so the Director
+  can verify the long-world mutation immediately.
+- README and PROJECT_MAP were updated. Run instructions are unchanged: open
+  `index.html` directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This directly serves the Director's top priority while respecting the accepted
+Generation 12 correction. The game now feels like a longer patrol instead of a
+single fixed arena, but the movement is not a detached parallax layer: enemies,
+powerups, weapons, stars, ground, and terrain all agree about the camera. That
+keeps the current readable two-front combat intact while adding spatial texture
+and a stronger sense of place. The mutation is structural but focused on one
+gameplay feel goal, and it avoids new rules, menus, objectives, or resource
+systems.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Helper assertions passed in a stubbed Node VM via `window.__seed`:
+  `worldWidth`, `worldToScreenX`, default and camera-aware `offscreenX`,
+  `cameraForPlayer` stable/follow/clamp behavior, and `groundY`.
+- Loaded the game at `http://127.0.0.1:8765/`, launched a run, confirmed the
+  browser console reported no errors, and visually verified the sector readout,
+  long-world terrain structures, player ship, HUD, and enemy plasma orb rendered
+  correctly.
+
+Effect on Project Direction:
+Moves the game toward the Director's long-world vision while preserving the
+lineage's strongest current combat decisions: momentum, facing, heat, pickups,
+enemy telegraphs, crossfire, and combo scoring. The project now has a simple
+world/camera substrate for future spatial mutations instead of needing to fake
+distance with background-only motion.
+
+Future Work Enabled:
+- Tune camera dead-zone and world length feel after playtesting.
+- Add richer terrain landmarks or small structure variants along the patrol
+  sector.
+- Explore objectives or events tied to sector position without replacing score
+  as the main replay chase.
+- Redesign the ship as an alien UAP with strobing lights.
+- Convert canvas HUD text to brighter sans-serif styling.
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music).

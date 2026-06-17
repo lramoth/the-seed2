@@ -118,23 +118,31 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 13
+Generation 14
 
-A free-flight space combat loop where the enemies are bright plasma orbs that
+A free-flight space combat loop set in a twenty-screen patrol sector, where the
+camera keeps the ship readable while the whole world scrolls in one shared
+frame: stars, ground, terrain structures, enemies, crates, missiles, and the
+player all agree about motion. The enemies are bright plasma orbs that
 flash through vivid colors, trail comet tails, and flare red before shooting
 back; their missiles burn friend and foe alike, the player's blaster can
 overheat, the ship flies with momentum, and crates parachute in to be caught —
 health to patch the hull, a "3X" boost for a burst of spread fire. The
-starfield and ground are stable combat references, so movement no longer makes
-background layers drift differently from enemies or powerups.
+HUD includes a compact sector readout so the Director can verify the long-world
+mutation immediately.
 
 ### The Game
 
-You pilot a ship that flies with *momentum*: thrust accelerates it toward a top
-speed and it *glides to a stop* when you let go, so dodging is about reading and
-managing your own inertia rather than stopping on a dime. The ship is also held
-clear of the *outer fifth of each side*, so enemies closing from either edge are
-always in view before they reach you. The ship faces whichever way you fly,
+You pilot a ship through a *twenty-screen patrol sector*. The ship flies with
+*momentum*: thrust accelerates it toward a top speed and it *glides to a stop*
+when you let go, so dodging is about reading and managing your own inertia
+rather than stopping on a dime. The camera keeps the ship clear of the *outer
+fifth of each side*, so enemies closing from either edge are always in view
+before they reach you, but sustained horizontal flight now carries you through a
+longer world instead of trapping the whole run on one fixed screen. Stars,
+ground, small terrain structures, enemies, crates, missiles, and the player all
+share the same camera frame, so the world feels long without the old parallax
+confusion. The ship faces whichever way you fly,
 and firing launches *enemy-seeking missiles* along that heading — each curves
 toward the nearest enemy ahead of it. A missile can only lock onto targets in
 front of it and can't whip around, so *which way you face still decides which
@@ -163,10 +171,8 @@ hull*; the rarer *gold "3X" crates* grant a few seconds of *spread fire*, where
 every trigger pull launches a fan of homing missiles instead of one, with a
 *countdown bar under your ship* showing the time left — catch one and press the
 advantage before it runs out.
-The starfield and ground stay fixed as a readable combat backdrop, so enemies,
-crates, missiles, and the background all share the same screen frame while you
-dodge. *Chaining kills builds a score-multiplier streak*: each kill landed before
-a short window lapses raises a **COMBO** multiplier (shown top-center with a
+*Chaining kills builds a score-multiplier streak*: each kill landed before a
+short window lapses raises a **COMBO** multiplier (shown top-center with a
 shrinking timer bar) up to a cap, and the bonus applies to baited crossfire kills
 too — so pressing the attack and keeping the chain alive is worth far more than
 picking ships off one at a time, while a lull lets the streak reset to nothing.
