@@ -1,14 +1,14 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 18
+ * The Seed 2 — Generation 19
  * Free-flight space combat where enemy fire burns friend and foe alike, the
- * ship flies with momentum, and crates parachute in to be caught — health to
- * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
- * bright plasma orbs that sometimes enter as small color-matched squadrons,
- * flash through vivid colors, stream a thin light trail along their weaving
- * path, and flare red before firing so each threat's heading, group, and next
- * shot read at a glance against the dark.
+ * ship flies with momentum under a futuristic luminous hull, and crates
+ * parachute in to be caught — health to patch the hull, a "3X" boost for a
+ * burst of spread fire. The enemies are bright plasma orbs that sometimes enter
+ * as small color-matched squadrons, flash through vivid colors, stream a thin
+ * light trail along their weaving path, and flare red before firing so each
+ * threat's heading, group, and next shot read at a glance against the dark.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
@@ -42,7 +42,8 @@
  * battlefield finally feels long without reviving the old parallax confusion.
  * Procedural Web Audio adds soft gameplay music, thruster hum, weapon, hit,
  * pickup, kill, combo, and game-over cues so combat feedback is felt as well as
- * seen. Survive as the pressure ramps up. Chaining kills before a short window
+ * seen, while bright Segoe-style canvas text keeps the HUD readable against the
+ * field. Survive as the pressure ramps up. Chaining kills before a short window
  * lapses builds a score-multiplier streak, so pressing the attack is worth more
  * than picking ships off one at a time. Score is the reason to play again.
  *
@@ -351,6 +352,14 @@ function comboMultiplier(combo, max) {
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+
+const UI_FONT = "'Segoe UI', 'Trebuchet MS', system-ui, -apple-system, sans-serif";
+const HUD_BRIGHT = "#eef7ff";
+const HUD_MUTED = "#9fb4d9";
+
+function uiFont(size, weight = "") {
+  return (weight ? weight + " " : "") + size + "px " + UI_FONT;
+}
 
 const keys = Object.create(null);
 const FIRE_KEYS = new Set(["Space"]);
@@ -1531,7 +1540,7 @@ function drawPickups() {
     ctx.fillStyle = skin.glow;
     if (c.kind === "salvo") {
       // "3X" emblem so the boost reads exactly as the Director described.
-      ctx.font = "bold 14px Arial, sans-serif";
+      ctx.font = uiFont(14, "700");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("3X", cx, c.y + c.h / 2 + 1);
@@ -1560,6 +1569,12 @@ function drawPlayer() {
   const p = state.player;
   const hw = p.w / 2;
   const hh = p.h / 2;
+  const glowColor =
+    p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#4dffa6" : p.salvo > 0 ? "#ffd23c" : "#36d7ff";
+  const hullColor =
+    p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#b9ffd8" : p.salvo > 0 ? "#ffe27a" : "#edf6ff";
+  const pulse = 0.78 + Math.sin(state.time * 7) * 0.12;
+  const strobe = 0.35 + (Math.sin(state.time * 18) + 1) * 0.32;
 
   // Draw in a local frame centered on the ship, mirrored to face its heading,
   // so the nose, thruster, and muzzle all point the way the player is flying.
@@ -1567,22 +1582,56 @@ function drawPlayer() {
   ctx.translate(worldToScreenX(p.x, state.cameraX) + hw, p.y + hh);
   ctx.scale(p.facing, 1);
 
+  // A soft aura makes the player ship the luminous focal point without changing
+  // its hitbox; the crisp hull drawn below still carries the readable shape.
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.24 * pulse;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 26;
+  ctx.fillStyle = glowColor;
+  ctx.beginPath();
+  ctx.moveTo(hw + 2, 0);
+  ctx.lineTo(-hw - 4, -hh - 5);
+  ctx.lineTo(-hw * 0.62, 0);
+  ctx.lineTo(-hw - 4, hh + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
   // Thruster flame flickers behind the ship.
   const flame = randRange(10, 22);
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.shadowColor = "#36d7ff";
+  ctx.shadowBlur = 16;
   ctx.fillStyle = "#36d7ff";
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = 0.72;
   ctx.beginPath();
   ctx.moveTo(-hw, -hh * 0.4);
   ctx.lineTo(-hw - flame, 0);
   ctx.lineTo(-hw, hh * 0.4);
   ctx.closePath();
   ctx.fill();
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#bff7ff";
+  ctx.globalAlpha = 0.82;
+  ctx.beginPath();
+  ctx.moveTo(-hw, -hh * 0.22);
+  ctx.lineTo(-hw - flame * 0.58, 0);
+  ctx.lineTo(-hw, hh * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 
   // Hull — white flash when hit, green flash briefly when a crate restores hull,
   // and a gold tint for as long as the 3X salvo boost is active.
-  ctx.fillStyle =
-    p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#4dffa6" : p.salvo > 0 ? "#ffe27a" : "#dfe9ff";
+  const hullGradient = ctx.createLinearGradient(-hw, 0, hw, 0);
+  hullGradient.addColorStop(0, "#8fb6ff");
+  hullGradient.addColorStop(0.45, hullColor);
+  hullGradient.addColorStop(1, "#ffffff");
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = hullGradient;
   ctx.beginPath();
   ctx.moveTo(hw, 0); // nose
   ctx.lineTo(-hw, -hh);
@@ -1590,10 +1639,36 @@ function drawPlayer() {
   ctx.lineTo(-hw, hh);
   ctx.closePath();
   ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = glowColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Luminous rails and strobing running lights sell the ship as a futuristic
+  // craft while preserving the original triangular silhouette at speed.
+  ctx.strokeStyle = "rgba(54, 215, 255, 0.78)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-hw * 0.58, -hh * 0.52);
+  ctx.lineTo(hw * 0.45, -hh * 0.08);
+  ctx.moveTo(-hw * 0.58, hh * 0.52);
+  ctx.lineTo(hw * 0.45, hh * 0.08);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255, 242, 122, " + strobe + ")";
+  ctx.shadowColor = "#fff27a";
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(-hw * 0.42, -hh * 0.66, 2.2, 0, Math.PI * 2);
+  ctx.arc(-hw * 0.42, hh * 0.66, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
   // Cockpit accent.
   ctx.fillStyle = p.flash > 0 ? "#ffffff" : "#36d7ff";
-  ctx.fillRect(-p.w * 0.05, -hh * 0.24, 6, hh * 0.48);
+  ctx.shadowColor = "#36d7ff";
+  ctx.shadowBlur = 10;
+  ctx.fillRect(-p.w * 0.05, -hh * 0.28, 7, hh * 0.56);
+  ctx.shadowBlur = 0;
 
   // Muzzle flash.
   if (p.muzzle > 0) {
@@ -1735,13 +1810,13 @@ function drawEnemies() {
 }
 
 function drawHUD() {
-  ctx.fillStyle = "#c8d4f0";
-  ctx.font = "20px 'Courier New', monospace";
+  ctx.fillStyle = HUD_BRIGHT;
+  ctx.font = uiFont(20, "600");
   ctx.textAlign = "left";
   ctx.fillText("SCORE " + String(state.score).padStart(6, "0"), 16, 30);
 
   ctx.textAlign = "right";
-  ctx.fillStyle = "#5e6b8c";
+  ctx.fillStyle = HUD_MUTED;
   ctx.fillText("BEST " + String(state.best).padStart(6, "0"), CFG.width - 16, 30);
 
   // A compact position readout makes the long patrol sector legible without
@@ -1755,8 +1830,8 @@ function drawHUD() {
   const navH = 4;
   const navX = CFG.width - 16 - navW;
   const navY = 44;
-  ctx.fillStyle = "#5e6b8c";
-  ctx.font = "11px 'Courier New', monospace";
+  ctx.fillStyle = HUD_MUTED;
+  ctx.font = uiFont(11, "600");
   ctx.fillText(
     "SECTOR " + String(sector).padStart(2, "0") + "/" + CFG.world.screens,
     CFG.width - 16,
@@ -1779,7 +1854,7 @@ function drawHUD() {
     ctx.save();
     ctx.textAlign = "center";
     ctx.fillStyle = hot;
-    ctx.font = "bold " + Math.round(22 * pop) + "px 'Courier New', monospace";
+    ctx.font = uiFont(Math.round(22 * pop), "700");
     ctx.fillText("COMBO x" + mult, cxm, 28);
     const cbW = 120;
     const cbH = 4;
@@ -1805,8 +1880,8 @@ function drawHUD() {
   ctx.fillRect(bx, by, barW * clamp(frac, 0, 1), barH);
   ctx.strokeStyle = "#2a3a66";
   ctx.strokeRect(bx, by, barW, barH);
-  ctx.fillStyle = "#5e6b8c";
-  ctx.font = "11px 'Courier New', monospace";
+  ctx.fillStyle = HUD_MUTED;
+  ctx.font = uiFont(11, "600");
   ctx.textAlign = "left";
   ctx.fillText("HULL", bx, by - 4);
 
@@ -1823,8 +1898,8 @@ function drawHUD() {
   ctx.fillRect(bx, heatY, barW * heatFrac, barH);
   ctx.strokeStyle = "#2a3a66";
   ctx.strokeRect(bx, heatY, barW, barH);
-  ctx.fillStyle = state.player.overheated ? "#ff7a8f" : "#5e6b8c";
-  ctx.font = "11px 'Courier New', monospace";
+  ctx.fillStyle = state.player.overheated ? "#ff9bad" : HUD_MUTED;
+  ctx.font = uiFont(11, "600");
   ctx.textAlign = "left";
   ctx.fillText(state.player.overheated ? "VENTING" : "HEAT", bx, heatY - 4);
 }
@@ -1844,11 +1919,11 @@ function drawReadyScreen() {
   ctx.fillStyle = "rgba(2, 3, 10, 0.55)";
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
-    { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Patrol a 20-screen sector while enemies flare before firing from both sides.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
-    { text: "Catch green crates to patch your hull — and gold 3X crates for a burst of spread fire.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
-    { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
-    { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
+    { text: "SPACE COMBAT", font: uiFont(44, "700"), color: "#36d7ff", gap: 50 },
+    { text: "Patrol a 20-screen sector while enemies flare before firing from both sides.", font: uiFont(18, "600"), color: HUD_BRIGHT, gap: 34 },
+    { text: "Catch green crates to patch your hull — and gold 3X crates for a burst of spread fire.", font: uiFont(18, "600"), color: "#7dffbd", gap: 34 },
+    { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: uiFont(16, "600"), color: HUD_MUTED, gap: 44 },
+    { text: "PRESS SPACE TO LAUNCH", font: uiFont(22, "700"), color: "#fff27a", gap: 0 },
   ]);
 }
 
@@ -1857,10 +1932,10 @@ function drawGameOver() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   const newBest = state.score >= state.best && state.score > 0;
   drawCenteredText([
-    { text: "HULL BREACHED", font: "44px 'Courier New', monospace", color: "#ff4d4d", gap: 50 },
-    { text: "SCORE " + state.score, font: "24px 'Courier New', monospace", color: "#c8d4f0", gap: 36 },
-    { text: newBest ? "NEW BEST!" : "BEST " + state.best, font: "18px 'Courier New', monospace", color: newBest ? "#ffd23c" : "#5e6b8c", gap: 46 },
-    { text: "PRESS R TO RELAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
+    { text: "HULL BREACHED", font: uiFont(44, "700"), color: "#ff4d4d", gap: 50 },
+    { text: "SCORE " + state.score, font: uiFont(24, "600"), color: HUD_BRIGHT, gap: 36 },
+    { text: newBest ? "NEW BEST!" : "BEST " + state.best, font: uiFont(18, "600"), color: newBest ? "#ffd23c" : HUD_MUTED, gap: 46 },
+    { text: "PRESS R TO RELAUNCH", font: uiFont(22, "700"), color: "#fff27a", gap: 0 },
   ]);
 }
 

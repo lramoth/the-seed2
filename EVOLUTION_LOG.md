@@ -1467,3 +1467,62 @@ Future Work Enabled:
 - Enhance the player's ship with a futuristic luminous glow.
 - Brighten the HUD fonts further if readability still suffers against the dark
   field.
+
+## Generation 19
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-19-1781737415)
+
+Intent:
+Address the Director's current highest-priority visual clarity notes without
+adding a new combat system: make the player ship look like a futuristic
+luminous craft, convert the canvas text away from Courier toward Segoe-style UI
+fonts, and brighten HUD text so score, sector, hull, and heat remain readable
+against the dark patrol field.
+
+Mutation:
+Refined the rendering layer only:
+
+- Added a shared Segoe-style canvas font helper and replaced the remaining
+  in-canvas Courier/Arial font strings in the HUD, ready screen, game-over
+  screen, combo readout, and 3X crate emblem.
+- Brightened HUD text colors, including score, best, sector, hull, and heat
+  labels, while keeping the compact HUD layout unchanged.
+- Enhanced `drawPlayer` with a state-aware luminous aura, brighter cyan
+  thruster core, gradient hull, glowing outline, cockpit light, cyan rails, and
+  small strobing running lights.
+- Preserved the ship's hitbox, movement, facing, weapons, enemies, audio,
+  scoring, pickups, heat, and spawn rules.
+- README and PROJECT_MAP were updated. Run instructions are unchanged: open
+  `index.html` directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This follows the Director's priority list directly and keeps the generation
+small. The player is the thing the eye must recover in every crossfire moment;
+giving the ship its own glow and running lights makes it a stronger visual
+anchor without changing the learned controls or balance. Brighter Segoe-style
+canvas text improves readability while preserving the minimal interface, so the
+Director can evaluate moment-to-moment play with less visual friction.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Confirmed `game.js` no longer contains Courier or Arial canvas font strings.
+- Served the folder with `python3 -m http.server 8765 --bind 127.0.0.1`, loaded
+  the game in the browser, launched a run, confirmed the 960x540 canvas rendered
+  with the luminous ship and brighter HUD text, and saw no browser console
+  errors.
+
+Effect on Project Direction:
+Improves the identity and readability of the player's ship and HUD while
+preserving the accepted combat loop. The game should be easier to evaluate and
+more satisfying to look at without expanding its rule set.
+
+Future Work Enabled:
+- Tune the exact ship glow intensity after playtesting in dense crossfire.
+- Add a subtle squadron-arrival or formation-clear stinger if grouped waves need
+  stronger feedback.
+- Continue refining HUD contrast if specific labels remain hard to read on
+  smaller displays.

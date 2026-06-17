@@ -29,7 +29,10 @@ Those enemy missiles deal a lighter, recoverable hull hit than a ram and are
 indiscriminate — once armed, one that strikes another enemy detonates on it, so
 the player can bait the two fronts into culling each other. The player's blaster
 builds heat while firing and briefly locks out when overheated, with heat shown
-in the HUD. The hull only takes damage from an enemy missile or a ram.
+in the HUD. The player ship renders with a soft luminous aura, cyan rails,
+bright cockpit, and strobing running lights so it remains the visual anchor in
+the crossfire; in-canvas text uses a brighter Segoe-style sans-serif stack. The
+hull only takes damage from an enemy missile or a ram.
 Occasionally a crate parachutes down from the top of the field; a green one
 restores hull, while the rarer gold "3X" one grants a timed spread-fire boost
 (every shot becomes a fan of homing missiles), with a countdown bar drawn under
@@ -149,15 +152,18 @@ The file is organized top-to-bottom into clear sections:
   — a green cross for health, a gold "3X" for the salvo boost — and a countdown
   bar appears under the ship while boosted. HUD shows score, best, hull, blaster
   heat, a compact SECTOR position bar, and a top-center COMBO multiplier with a
-  shrinking chain-window bar while a streak is live. The player ship is drawn in
-  a mirrored local frame so its nose, thruster, and muzzle face the direction of
-  travel; enemies render as diffuse plasma orbs (a radial-gradient white-hot core
-  and halo) that flash through cycling hues (`cycleHue`) and stream a thin,
-  fading light trail through their recent `trail` positions — tracing the orb's
-  weaving path without dominating it — then add a red charge ring plus an
-  aiming bead as their fire cooldown reaches zero; missiles are rotated to their
-  heading so the dart and its exhaust point where they fly. Screen shake is
-  applied as a canvas transform during damage.
+  shrinking chain-window bar while a streak is live; HUD and menu text use the
+  shared Segoe-style canvas font and brighter label colors. The player ship is
+  drawn in a mirrored local frame so its nose, thruster, and muzzle face the
+  direction of travel, with a cyan/gold/green state-aware glow, luminous rails,
+  cockpit light, and running-light strobes layered around the same hitbox;
+  enemies render as diffuse plasma orbs (a radial-gradient white-hot core and
+  halo) that flash through cycling hues (`cycleHue`) and stream a thin, fading
+  light trail through their recent `trail` positions — tracing the orb's weaving
+  path without dominating it — then add a red charge ring plus an aiming bead as
+  their fire cooldown reaches zero; missiles are rotated to their heading so the
+  dart and its exhaust point where they fly. Screen shake is applied as a canvas
+  transform during damage.
 - **Main loop** — `requestAnimationFrame` loop computing `dt` and calling
   `update` then `render`.
 

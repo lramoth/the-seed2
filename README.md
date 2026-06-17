@@ -118,7 +118,7 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 18
+Generation 19
 
 A free-flight space combat loop set in a twenty-screen patrol sector, where the
 camera keeps the ship readable while the whole world scrolls in one shared
@@ -127,24 +127,27 @@ player all agree about motion. The enemies are bright plasma orbs that sometimes
 enter as two- or three-orb squadrons from one edge, flash through vivid colors,
 trail a thin light trail along their weaving path, and flare red before shooting
 back; their missiles burn friend and foe alike but deal reduced hull damage, the
-player's blaster can overheat, the ship flies with momentum, and crates
-parachute in to be caught — health to patch the hull, a "3X" boost for a burst
-of spread fire. Procedural audio now adds a calm in-run pad, thruster hum,
-weapon shots, enemy shots, kill bursts, combo chimes, pickup cues, hull-hit
-alerts, overheat venting, and a game-over falloff. The HUD includes a compact
-sector readout so the Director can verify the long-world mutation immediately.
+player's blaster can overheat, the ship flies with momentum under a futuristic
+luminous hull, and crates parachute in to be caught — health to patch the hull,
+a "3X" boost for a burst of spread fire. Procedural audio now adds a calm in-run
+pad, thruster hum, weapon shots, enemy shots, kill bursts, combo chimes, pickup
+cues, hull-hit alerts, overheat venting, and a game-over falloff. The canvas UI
+uses brighter Segoe-style text, and the HUD includes a compact sector readout so
+the Director can verify the long-world mutation immediately.
 
 ### The Game
 
 You pilot a ship through a *twenty-screen patrol sector*. The ship flies with
 *momentum*: thrust accelerates it toward a top speed and it *glides to a stop*
 when you let go, so dodging is about reading and managing your own inertia
-rather than stopping on a dime. The camera keeps the ship clear of the *outer
-fifth of each side*, so enemies closing from either edge are always in view
-before they reach you, but sustained horizontal flight now carries you through a
-longer world instead of trapping the whole run on one fixed screen. Stars,
-ground, small terrain structures, enemies, crates, missiles, and the player all
-share the same camera frame, so the world feels long without the old parallax
+rather than stopping on a dime. The ship is a luminous, cyan-edged craft with a
+soft aura, bright cockpit, and strobing running lights so the player stays easy
+to find in the crossfire. The camera keeps the ship clear of the *outer fifth of
+each side*, so enemies closing from either edge are always in view before they
+reach you, but sustained horizontal flight now carries you through a longer
+world instead of trapping the whole run on one fixed screen. Stars, ground,
+small terrain structures, enemies, crates, missiles, and the player all share
+the same camera frame, so the world feels long without the old parallax
 confusion. The ship faces whichever way you fly,
 and firing launches *enemy-seeking missiles* along that heading — each curves
 toward the nearest enemy ahead of it. A missile can only lock onto targets in
@@ -189,7 +192,9 @@ picking ships off one at a time, while a lull lets the streak reset to nothing.
 Sound starts when you launch the run: a soft procedural music bed supports play,
 the thruster hum rises only while you push the ship, and short cues mark shots,
 enemy fire, kills, combo climbs, pickups, hull loss, overheat, and game over
-without adding any audio files or setup steps.
+without adding any audio files or setup steps. In-canvas text uses a
+Segoe-style sans-serif stack with brighter HUD labels for readability against
+the dark field.
 Score is the reason to play again.
 
 ### Controls
