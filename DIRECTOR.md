@@ -9,8 +9,8 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Player movement should appear infinite. No boundary should be hit.
-- Enemies should move in both the left and right directions. Currently they are only spawning from the left and moving to the right.
+- The player's world should appear at least 20 screens in length.
+- Enemies should spawn from both the left and right side of the screen and move left or right, depending on which side they spawned from.
 - Remove the near starscape that seems to move different than the far starscape.
 - BUG: When the player moves left and right enemies and power ups should not move differently in relationship to the user's current direction. Remove whatever parallax was added.
 - Improve the enemy plasma orb tails so that they appear like a light trail.
