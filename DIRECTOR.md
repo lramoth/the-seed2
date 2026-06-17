@@ -9,7 +9,6 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Improve the enemy plasma orb tails by making them slightly longer.
 - Redesign our ship to look like an alien UAP with bright strobing lights.
 - Have enemy ships form squadrons or groups.
 - Convert all fonts to Segoe UI or similar variant.
