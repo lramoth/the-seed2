@@ -124,7 +124,8 @@ A free-flight space combat loop set in a twenty-screen patrol sector, where the
 camera keeps the ship readable while the whole world scrolls in one shared
 frame: stars, ground, terrain structures, enemies, crates, missiles, and the
 player all agree about motion. The enemies are bright plasma orbs that
-flash through vivid colors, trail comet tails, and flare red before shooting
+flash through vivid colors, trail a thin light trail along their weaving path,
+and flare red before shooting
 back; their missiles burn friend and foe alike, the player's blaster can
 overheat, the ship flies with momentum, and crates parachute in to be caught —
 health to patch the hull, a "3X" boost for a burst of spread fire. The
@@ -151,8 +152,9 @@ of punishing a near miss. Continuous fire now builds blaster heat. If the heat
 bar fills, the weapon overheats and briefly vents before it can fire again, so
 controlled bursts keep you dangerous longer than holding Space forever. The
 enemies are *bright plasma orbs* that flash through vivid colors and stream a
-*comet tail* opposite the way they fly — so each threat's heading reads at a
-glance. They close in from *both* edges at once and *return fire* — a red charge
+thin *light trail* tracing the weaving path they actually fly — so each threat's
+heading and drift read at a glance without the trail dominating the orb.
+They close in from *both* edges at once and *return fire* — a red charge
 ring and hot aiming bead flare around an orb just before it shoots, then it lobs
 its own seeking missile at you, slower and turning more lazily than yours, so you
 can out-fly and juke it. Those enemy missiles are *indiscriminate*: once armed,

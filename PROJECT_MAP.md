@@ -79,7 +79,8 @@ The file is organized top-to-bottom into clear sections:
   `enemyMissiles`, `enemies`, `pickups`, `particles`, `stars`, `structures`).
 - **Spawning / effects** — Enemies spawn from either visible camera edge (each
   with a travel `dir`, a randomized fire cooldown, a short `fireFlash` timer for shot
-  feedback, and a per-orb `hue` + `hueRate` for its color flashing) on a
+  feedback, a per-orb `hue` + `hueRate` for its color flashing, and a `trail` of
+  recent world-space centers for its light trail) on a
   difficulty ramp; crates
   (`spawnPickup`) drop from the top on an independent timer within the player's
   current camera band, each tagged a `kind` (`health` or the rarer `salvo`, by
@@ -98,7 +99,9 @@ The file is organized top-to-bottom into clear sections:
   playing frame, and a full heat bar locks firing until it vents below the
   release threshold. Enemies travel a signed direction and, once fully on-field,
   return fire on a per-ship cooldown (`enemyFire`); each enemy also decays a
-  short `fireFlash` timer after shooting, while the upcoming shot telegraph is
+  short `fireFlash` timer after shooting, records its current center into a
+  capped `trail` (`CFG.enemy.trailMax`) for its light trail, while the upcoming
+  shot telegraph is
   derived from the remaining cooldown. A ship leaving either edge (`offscreenX`)
   is simply removed — breaches are harmless. Enemy missiles
   re-aim at the player every frame at a lower turn rate (`updateEnemyMissiles`,
@@ -125,8 +128,9 @@ The file is organized top-to-bottom into clear sections:
   shrinking chain-window bar while a streak is live. The player ship is drawn in
   a mirrored local frame so its nose, thruster, and muzzle face the direction of
   travel; enemies render as diffuse plasma orbs (a radial-gradient white-hot core
-  and halo) that flash through cycling hues (`cycleHue`) and stream a tapering,
-  fading comet tail opposite their travel, then add a red charge ring plus an
+  and halo) that flash through cycling hues (`cycleHue`) and stream a thin,
+  fading light trail through their recent `trail` positions — tracing the orb's
+  weaving path without dominating it — then add a red charge ring plus an
   aiming bead as their fire cooldown reaches zero; missiles are rotated to their
   heading so the dart and its exhaust point where they fly. Screen shake is
   applied as a canvas transform during damage.

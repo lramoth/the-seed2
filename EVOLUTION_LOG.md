@@ -1173,3 +1173,93 @@ Future Work Enabled:
 - Redesign the ship as an alien UAP with strobing lights.
 - Convert canvas HUD text to brighter sans-serif styling.
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music).
+
+## Generation 15
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-15-1781709461)
+
+Intent:
+Address the Director's current highest-priority note. DIRECTOR.md's top
+playtesting line now reads: "Improve the enemy plasma orb tails so that they
+appear like a light trail and follows the movement of the enemy orb. The tail
+should not be a dominant feature of the enemy ships." Through Generation 14 the
+enemy tail was a static fan of six translucent radial puffs pointing in a fixed
+geometric direction (opposite `dir`, with a constant sine lean). It did not
+trace where the orb had actually been, and its wide, bright puffs read as a
+dominant comet rather than a light trail — exactly the two things the Director
+flagged. The highest-value small, coherent mutation is to rework the tail into a
+true motion trail.
+
+Mutation:
+Replaced the static comet-puff tail with a light trail that follows the orb's
+real path — one coherent change confined to enemy spawn data, `updateEnemies`,
+and `drawEnemies`, with no gameplay-logic change:
+
+- Each enemy now carries a `trail`: a capped list (`CFG.enemy.trailMax`, 12) of
+  its recent center positions in *world* coordinates. `updateEnemies` pushes the
+  current center each frame after moving and trims the oldest, so the trail is a
+  genuine record of the orb's weaving path (including its vertical drift), not a
+  fixed direction.
+- `drawEnemies` draws a thin, fading ribbon through those points: each segment is
+  projected through the camera (`worldToScreenX`), stroked in the orb's current
+  flashing hue, and ramped by position so the oldest end is faint and narrow and
+  the freshest (nearest the orb) is the brightest — but the whole trail is capped
+  at ~0.45× the core radius in width and ~0.32 max alpha, drawn with `lighter`
+  compositing, so it reads as a streak of light rather than a dominant comet.
+- The hitbox (`e.w` × `e.h`) and every gameplay rule — spawning, movement,
+  drift, ramming, missile kills, return fire, charge telegraph, indiscriminate
+  crossfire, scoring — are untouched. The halo, white-hot core, and red
+  charge-ring/aiming-bead rendering are unchanged. The old `PUFFS` constant and
+  the geometric tail-direction vectors are removed.
+- All new behavior is one tunable value in `CFG.enemy` (`trailMax`). The header
+  comment, README ("Current State", "The Game"), and PROJECT_MAP (state,
+  spawning, update, render) were updated. The UAP ship redesign, the hull-damage
+  reduction, sans-serif/brighter fonts, and audio were left for separate
+  generations to keep this a single idea.
+
+Rationale:
+This implements the Director's current top-ranked note precisely and literally —
+"a light trail" that "follows the movement of the enemy orb" and is "not a
+dominant feature." It reinforces the accepted lineage rather than fighting it:
+the trail now traces each orb's actual weave, so heading *and* drift read at a
+glance, directly serving the lineage's core "which front do I face?" decision
+(Gens 2–4) and the Director's "clear player feedback" target — while the thinner,
+fainter look removes the visual heaviness the Director rejected. It is purely
+cosmetic with no control, damage, spawn, or movement change, so it carries little
+risk of making the game feel worse, and recording world-space centers means the
+camera scroll (Gen 14) never smears the trail.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play
+  (`preview_console_logs` level=error returned none).
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed: a hand-placed orb run through 30 frames
+  of `updateEnemies` grew its `trail` and capped it at exactly `CFG.enemy.trailMax`
+  (12); the recorded centers advanced in x with the orb's travel and varied in y
+  with its drift — confirming the trail follows real movement, in world space.
+- Visual confirmation: a frozen staged frame (live `update` no-opped so the rAF
+  loop could not overwrite it) showed three plasma orbs in distinct vivid colors,
+  each trailing a thin, curving, fading light trail along its weaving path —
+  clearly subordinate to the bright orb core — with the player ship, HUD,
+  starfield, ground, and terrain structures all intact and no rendering
+  regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Resolves the Director's current top note and gives the enemies a cleaner, more
+legible identity: the trail now reads as motion (where the orb has been) rather
+than decoration. The per-enemy world-space `trail` buffer is reusable substrate
+for any future "follows its path" feedback (e.g. player thruster trails, missile
+ribbons, or trails on new enemy variants).
+
+Future Work Enabled:
+- Reduce hull damage from enemy fire — the next Director playtesting note.
+- Redesign the ship as an alien UAP with strobing lights — the deferred Director note.
+- Convert fonts to Segoe UI / sans-serif and brighten the HUD — the deferred Director notes.
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music).
+- Tune `trailMax` and trail width/alpha for readability via `CFG`.

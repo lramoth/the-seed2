@@ -5,13 +5,13 @@
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
- * bright plasma orbs that flash through vivid colors and stream a comet tail
- * behind them, then flare red before firing so each threat's heading and next
- * shot read at a glance against the dark.
+ * bright plasma orbs that flash through vivid colors and stream a thin light
+ * trail along their weaving path, then flare red before firing so each threat's
+ * heading and next shot read at a glance against the dark.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
- * them. The enemies — drifting plasma orbs trailing comet tails — close in from
+ * them. The enemies — drifting plasma orbs trailing thin light trails — close in from
  * BOTH edges and return fire: each flares red as it charges, then lobs its own
  * seeking missile at the player, but slower and turning more lazily than the
  * player's, so it seeks for real yet can be out-flown and juked. Those enemy
@@ -131,6 +131,11 @@ const CFG = {
     // shimmers out of sync rather than pulsing in unison.
     hueRateMin: 50,
     hueRateMax: 150,
+    // Light trail: the orb records its recent center positions (world-space) and
+    // draws a thin, fading ribbon through them, so the tail follows the orb's
+    // actual weaving path rather than pointing in a fixed geometric direction.
+    // Kept short and faint so it reads as a light trail, not a dominant comet.
+    trailMax: 12, // number of recent positions retained for the trail
   },
 
   spawn: {
@@ -457,6 +462,8 @@ function spawnEnemy() {
     // orb flashes through vivid colors independently of its neighbors.
     hue: Math.random() * 360,
     hueRate: randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax),
+    // Recent center positions (world-space) for the light trail, newest last.
+    trail: [],
   });
 }
 
@@ -841,6 +848,11 @@ function updateEnemies(dt) {
     if (e.fireFlash > 0) e.fireFlash = Math.max(0, e.fireFlash - dt);
     e.y = clamp(e.y + Math.sin(e.phase) * e.drift * dt, 0, playBottom() - e.h);
 
+    // Record the orb's current center for its light trail, then trim to length.
+    // World-space, so camera scroll never smears the trail.
+    e.trail.push({ x: e.x + e.w / 2, y: e.y + e.h / 2 });
+    if (e.trail.length > CFG.enemy.trailMax) e.trail.shift();
+
     // Slipping off either edge is now harmless — the threat is enemy fire, not
     // position, so an uncleared ship simply leaves the field.
     if (offscreenX(e, CFG.width, state.cameraX, CFG.world.despawnMargin)) {
@@ -1222,15 +1234,14 @@ function drawSalvoBar() {
 }
 
 // Enemies render as bright, diffuse plasma orbs that flash through vivid colors
-// and stream a comet tail behind them. The tail points opposite the travel
-// direction (with a soft vertical lean from the drift, so it whips as the orb
-// weaves), which makes each threat's heading read at a glance — reinforcing the
-// "which front do I face?" decision. A red charge ring and aiming bead appear
+// and stream a light trail behind them. The trail is a thin, fading ribbon
+// drawn through the orb's recent positions, so it traces the orb's actual
+// weaving path — heading and drift read at a glance — while staying subtle
+// enough not to dominate the ship. A red charge ring and aiming bead appear
 // just before the orb fires, exposing the imminent shot without changing the
 // cooldown. The hitbox is unchanged; the bright core sits on the orb's center
 // and the halo is just glow.
 function drawEnemies() {
-  const PUFFS = 6;
   for (const e of state.enemies) {
     const sx = worldToScreenX(e.x, state.cameraX);
     if (sx < -120 || sx > CFG.width + 120) continue;
@@ -1246,31 +1257,32 @@ function drawEnemies() {
       ? clamp(e.fireFlash / CFG.enemy.fireFlashTime, 0, 1)
       : 0;
 
-    // Unit vector for the tail: behind the orb (-dir), leaning with the drift.
-    const tdx = -e.dir;
-    const tdy = Math.sin(e.phase) * 0.35;
-    const tlen = Math.hypot(tdx, tdy);
-    const ux = tdx / tlen;
-    const uy = tdy / tlen;
-    const tailLen = e.w * 2.6;
-
     ctx.save();
 
-    // Comet tail: layered translucent puffs, brightest and widest just behind
-    // the orb, tapering and fading to nothing at the tip.
-    for (let i = PUFFS; i >= 1; i--) {
-      const f = i / PUFFS; // 1 at the tip, → 0 near the orb
-      const px = cx + ux * tailLen * f;
-      const py = cy + uy * tailLen * f;
-      const pr = Math.max(1, r * (1.05 - f * 0.8));
-      const a = (1 - f) * 0.5;
-      const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
-      g.addColorStop(0, `hsla(${hue}, 100%, 70%, ${a})`);
-      g.addColorStop(1, `hsla(${hue}, 100%, 55%, 0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(px, py, pr, 0, Math.PI * 2);
-      ctx.fill();
+    // Light trail: a thin, fading ribbon through the orb's recent positions.
+    // Oldest samples are faint and narrow, the freshest (nearest the orb) the
+    // brightest and widest — but the whole trail stays a fraction of the core
+    // radius so it reads as a streak of light, not a dominant comet. Drawn with
+    // additive blending so it glows without overpowering the field.
+    const trail = e.trail;
+    if (trail.length > 1) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (let i = 1; i < trail.length; i++) {
+        const f = i / (trail.length - 1); // 0 at the oldest, → 1 at the orb
+        const ax = worldToScreenX(trail[i - 1].x, state.cameraX);
+        const ay = trail[i - 1].y;
+        const bx = worldToScreenX(trail[i].x, state.cameraX);
+        const by = trail[i].y;
+        ctx.strokeStyle = `hsla(${hue}, 100%, 72%, ${f * f * 0.32})`;
+        ctx.lineWidth = Math.max(0.5, r * 0.45 * f);
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = "source-over";
     }
 
     // Diffuse halo around the orb.
