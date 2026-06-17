@@ -15,7 +15,10 @@ Describe what currently exists, not what may exist in the future.
 ## Overview
 
 A browser-based, free-flight space combat game. The player pilots a ship across
-the field and faces the direction they fly; firing launches enemy-seeking
+the field and faces the direction they fly. The ship flies with momentum —
+input accelerates it toward a top speed and it glides to a stop when released —
+and is held clear of the outer fifth of each side so threats are visible as they
+close. Firing launches enemy-seeking
 missiles that curve toward the nearest enemy ahead of them, while threats close
 in from both edges and fire their own (deliberately less accurate) seeking
 missiles back. Those enemy missiles are indiscriminate — once armed, one that
@@ -44,19 +47,24 @@ The file is organized top-to-bottom into clear sections:
 - **Pure helpers** — `clamp`, `rectsOverlap`, `lerp`, `randRange`,
   `offscreenX` (left/right edge test), `offscreen` (all-four-edges test for
   missiles), `angleDelta` / `steerAngle` (capped rotation toward a heading, the
-  basis of missile turning), `playBottom` (sky/ground divide). Side-effect free;
+  basis of missile turning), `playBottom` (sky/ground divide), `playerBoundsX`
+  (the horizontal range the player may occupy, given the edge buffer). Side-effect free;
   the testable ones are exposed on `window.__seed`.
 - **Canvas + input** — Keyboard state tracking and phase transitions
   (launch / restart).
 - **Game state** — A single `state` object rebuilt by `newState()` /
-  `startGame()`. Holds the phase, score, the player (including `facing`, heat,
+  `startGame()`. Holds the phase, score, the player (including `facing`, velocity, heat,
   and overheat lockout), per-frame `scrollDX` / accumulated `groundScroll`, and
   entity arrays (`missiles`, `enemyMissiles`, `enemies`, `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
   `dir` and a randomized fire cooldown) on a difficulty ramp, plus particle
   explosions.
 - **Update** — Fixed responsibilities per entity type, driven by delta time so
-  motion is frame-rate independent. The player's actual horizontal travel
+  motion is frame-rate independent. The player accelerates under input and
+  retains velocity (`player.vx` / `vy`), with drag bleeding it off when input
+  stops, a capped top speed, and a horizontal clamp (`playerBoundsX`) that keeps
+  the ship out of the outer edge buffer — hitting a bound zeroes that axis's
+  velocity. The player's actual horizontal travel
   (`scrollDX`) drives the background parallax — the world only moves when the
   player does. Player missiles carry a heading angle: each frame they steer
   toward the nearest enemy *ahead* of them (`nearestSeekTarget`) at a capped turn

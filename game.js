@@ -1,8 +1,9 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 6
- * Free-flight space combat where enemy fire burns friend and foe alike.
+ * The Seed 2 — Generation 7
+ * Free-flight space combat where enemy fire burns friend and foe alike, and the
+ * ship flies with momentum.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
@@ -17,7 +18,10 @@
  * a two-front problem: pick the side that is shooting at you, seek it clear, bait
  * the crossfire, and dodge the rest while you pivot. The blaster builds heat as
  * it fires; holding the trigger too long overheats it, forcing a brief vent
- * window that asks for bursts instead of infinite spam. The world only moves
+ * window that asks for bursts instead of infinite spam. The ship flies with
+ * momentum — input accelerates it toward a top speed and it glides to a stop when
+ * you let go, so dodging is about managing inertia — and it is held clear of the
+ * outer edges so threats are visible before they close. The world only moves
  * when the player moves — a parallax starfield and rolling ground terrain make
  * that self-directed flight legible. Survive as the pressure ramps up. Score is
  * the reason to play again.
@@ -41,7 +45,18 @@ const CFG = {
   player: {
     w: 46,
     h: 24,
-    speed: 340, // px/sec
+    // Momentum-based flight: input accelerates the ship toward a capped top
+    // speed, and velocity carries (and glides to a stop) when keys release, so
+    // the ship has weight and dodging becomes about managing inertia.
+    maxSpeed: 360, // px/sec — top speed the thrusters can reach
+    accel: 2400, // px/sec^2 — how hard input pushes toward top speed
+    // Fraction of velocity retained per second with no input. Small number =
+    // strong drag; applied frame-rate-independently via Math.pow(drag, dt).
+    // ~0.21s to shed half your speed, so the glide is felt but stays controllable.
+    drag: 0.04,
+    // The ship is held out of the outer edgeBuffer of the field on each side, so
+    // threats closing from either edge are always visible before they reach you.
+    edgeBuffer: 0.2,
     fireCooldown: 0.16, // seconds between shots
     heatPerShot: 0.1,
     heatCoolRate: 0.34, // heat cleared per second while the blaster vents
@@ -161,6 +176,14 @@ function playBottom() {
   return CFG.height - CFG.world.groundHeight;
 }
 
+// The inclusive horizontal range the player's top-left x may occupy. The ship is
+// held a `buffer` fraction of the field away from each edge so threats closing
+// from either side are visible before they arrive.
+function playerBoundsX(width, w, buffer) {
+  const margin = width * buffer;
+  return { lo: margin, hi: width - margin - w };
+}
+
 // ---------------------------------------------------------------------------
 // Canvas + input
 // ---------------------------------------------------------------------------
@@ -219,6 +242,8 @@ function newState() {
       y: CFG.height / 2 - CFG.player.h / 2,
       w: CFG.player.w,
       h: CFG.player.h,
+      vx: 0, // current velocity (px/sec) — momentum carries between frames
+      vy: 0,
       facing: 1, // +1 faces/fires right, -1 faces/fires left
       cooldown: 0,
       hull: CFG.player.maxHull,
@@ -370,17 +395,39 @@ function updatePlayer(dt) {
   if (dx < 0) p.facing = -1;
   else if (dx > 0) p.facing = 1;
 
-  // Normalize diagonal movement so it isn't faster than cardinal movement.
+  // Normalize diagonal input so it isn't a stronger push than cardinal input.
   if (dx !== 0 && dy !== 0) {
     const inv = 1 / Math.sqrt(2);
     dx *= inv;
     dy *= inv;
   }
 
-  // Free roaming across the whole field, but stay in the sky above the ground.
+  // Momentum: input accelerates the ship; with no input, drag bleeds velocity
+  // off so it glides to a stop. Drag is applied frame-rate-independently.
+  p.vx += dx * CFG.player.accel * dt;
+  p.vy += dy * CFG.player.accel * dt;
+  const damp = Math.pow(CFG.player.drag, dt);
+  p.vx *= damp;
+  p.vy *= damp;
+
+  // Cap the speed (on the combined vector so diagonals aren't faster).
+  const spd = Math.hypot(p.vx, p.vy);
+  if (spd > CFG.player.maxSpeed) {
+    const k = CFG.player.maxSpeed / spd;
+    p.vx *= k;
+    p.vy *= k;
+  }
+
+  // Integrate, then clamp inside the field. Hitting a bound kills that axis's
+  // velocity so momentum doesn't pin the ship against the wall.
+  const bounds = playerBoundsX(CFG.width, p.w, CFG.player.edgeBuffer);
   const prevX = p.x;
-  p.x = clamp(p.x + dx * CFG.player.speed * dt, 0, CFG.width - p.w);
-  p.y = clamp(p.y + dy * CFG.player.speed * dt, 0, playBottom() - p.h);
+  const nextX = p.x + p.vx * dt;
+  p.x = clamp(nextX, bounds.lo, bounds.hi);
+  if (p.x !== nextX) p.vx = 0;
+  const nextY = p.y + p.vy * dt;
+  p.y = clamp(nextY, 0, playBottom() - p.h);
+  if (p.y !== nextY) p.vy = 0;
   state.scrollDX = p.x - prevX; // how far we actually flew this frame
 
   if (p.cooldown > 0) p.cooldown -= dt;
@@ -931,5 +978,6 @@ if (typeof window !== "undefined") {
     offscreen,
     angleDelta,
     steerAngle,
+    playerBoundsX,
   };
 }

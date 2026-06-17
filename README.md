@@ -118,14 +118,19 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 6
+Generation 7
 
 A free-flight space combat loop where the enemies shoot back, their missiles
-burn friend and foe alike, and the player's blaster can overheat.
+burn friend and foe alike, the player's blaster can overheat, and the ship now
+flies with momentum.
 
 ### The Game
 
-You pilot a ship freely across the field. The ship faces whichever way you fly,
+You pilot a ship that flies with *momentum*: thrust accelerates it toward a top
+speed and it *glides to a stop* when you let go, so dodging is about reading and
+managing your own inertia rather than stopping on a dime. The ship is also held
+clear of the *outer fifth of each side*, so enemies closing from either edge are
+always in view before they reach you. The ship faces whichever way you fly,
 and firing launches *enemy-seeking missiles* along that heading — each curves
 toward the nearest enemy ahead of it. A missile can only lock onto targets in
 front of it and can't whip around, so *which way you face still decides which
@@ -148,7 +153,8 @@ ground terrain mark your heading. Score is the reason to play again.
 
 ### Controls
 
-- Fly: WASD or Arrow Keys (the ship faces the direction you fly)
+- Fly: WASD or Arrow Keys (the ship accelerates with momentum and faces the
+  direction you fly; it coasts to a stop when you release)
 - Fire: Space (launches seeking missiles in the direction you are facing; the
   blaster overheats under sustained fire)
 - Launch / Restart: Space (start), R (after a run ends)

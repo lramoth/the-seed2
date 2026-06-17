@@ -487,3 +487,91 @@ Future Work Enabled:
 - Movement feel: edge buffer and momentum
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Tuning `armTime` and spawn density so crossfire is a frequent-enough reward
+
+## Generation 7
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-7-1781667843)
+
+Intent:
+Give the ship the *feel* the Director's top playtesting notes ask for. DIRECTOR.md's
+first three priority-ordered notes are all about how the ship moves: a ~20% buffer
+from each edge "so that the user can see enemies quickly," and "allow momentum in
+the user's movements." Every generation since Gen 3 has listed "movement feel:
+edge buffer and momentum" as enabled-but-unaddressed future work. Through
+Generation 6 the ship moved with instantaneous velocity (position set directly
+from input) and could slide flush to either screen edge. These two notes are one
+coherent idea — the flight model — so the highest-value mutation is to make the
+ship fly with weight and hold it clear of the edges.
+
+Mutation:
+Reworked player movement into momentum-based flight with a symmetric edge buffer
+— one coherent change to how the ship moves, reusing the existing update path and
+parallax with no new subsystem:
+
+- The player now carries velocity (`player.vx` / `vy`). Input applies
+  acceleration (`CFG.player.accel`) toward a capped top speed
+  (`CFG.player.maxSpeed`); with no input, drag (`CFG.player.drag`, applied
+  frame-rate-independently as `Math.pow(drag, dt)`) bleeds velocity off so the
+  ship glides to a stop. The speed cap is applied to the combined vector, so
+  diagonals are not faster. `CFG.player.speed` is replaced by these values.
+- The ship is held a `CFG.player.edgeBuffer` (0.2) fraction of the field away
+  from each side via the new pure helper `playerBoundsX`. Hitting a horizontal
+  bound zeroes `vx` so built-up momentum does not pin the ship to the wall; the
+  vertical clamp (sky above the ground band) zeroes `vy` the same way.
+- Facing still follows steering *input*, not velocity, so you can brake or fire
+  the way you came while still drifting — responsiveness is preserved.
+- The world-moves-when-you-move parallax is unchanged: it reads `scrollDX` (the
+  ship's actual travel this frame), which momentum now produces naturally.
+- Header comment, README ("The Game", Controls, Current State), and PROJECT_MAP
+  updated. Plasma-orb visuals, power-ups, fonts, and audio were left for separate
+  generations to keep this a single idea.
+
+Rationale:
+This implements the Director's three highest-priority notes at once while
+*reinforcing* the accepted lineage rather than fighting it. Momentum makes the
+core two-front dodge — "which front do I face, and can I get out of the way?" —
+more expressive: you must lead your turns and respect inertia, which rewards
+mastery without adding rules, menus, or hidden state. The edge buffer is a
+deliberate, Director-requested refinement of Gen 2's removal of the old left-side
+clamp: rather than re-pinning the player, it keeps a symmetric central band so
+both fronts stay visible, which is exactly the reason the Director gave. All new
+behavior is tunable from `CFG.player`, so the feel can be dialed in without
+structural change.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play.
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed:
+  - `playerBoundsX(960, 46, 0.2)` returned `{lo: 192, hi: 722}`.
+  - Holding right for 0.3s accelerated `vx` to exactly the cap (360) and no
+    higher; facing was +1.
+  - On release, velocity decayed from 360 to 179.2 over ~one configured
+    half-life (~0.216s) and to ~0.29 after a long glide — confirming inertia.
+  - Shoving right into the wall clamped `x` to 722 (the right bound) with `vx`
+    zeroed; shoving left clamped `x` to 192 (the left bound) with `vx` zeroed and
+    facing -1 — momentum does not pin the ship to an edge.
+- Visual confirmation: a staged, frozen frame rendered the player ship (with
+  thruster) mid-field, gold missiles in flight, enemies entering from both edges
+  at different heights, and red enemy missiles — HUD intact, no rendering
+  regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Resolves the movement-feel pressure at the top of DIRECTOR.md and makes the ship
+feel like a piloted craft with weight rather than a cursor. The velocity model
+(`vx` / `vy` with accel + drag) and the `playerBoundsX` helper are reusable
+substrate for future feel work — thruster-strength power-ups, knockback from
+impacts, or hazards that push the ship.
+
+Future Work Enabled:
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Power-ups (health pickups; multi-missile salvos) and a duration bar, with
+  parachute-drop crates
+- Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Tuning accel / drag / top speed / edge buffer against spawn pacing via `CFG`
