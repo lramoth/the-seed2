@@ -118,7 +118,7 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 12
+Generation 13
 
 A free-flight space combat loop where the enemies are bright plasma orbs that
 flash through vivid colors, trail comet tails, and flare red before shooting
@@ -165,7 +165,12 @@ every trigger pull launches a fan of homing missiles instead of one, with a
 advantage before it runs out.
 The starfield and ground stay fixed as a readable combat backdrop, so enemies,
 crates, missiles, and the background all share the same screen frame while you
-dodge. Score is the reason to play again.
+dodge. *Chaining kills builds a score-multiplier streak*: each kill landed before
+a short window lapses raises a **COMBO** multiplier (shown top-center with a
+shrinking timer bar) up to a cap, and the bonus applies to baited crossfire kills
+too — so pressing the attack and keeping the chain alive is worth far more than
+picking ships off one at a time, while a lull lets the streak reset to nothing.
+Score is the reason to play again.
 
 ### Controls
 

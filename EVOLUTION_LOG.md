@@ -1001,3 +1001,100 @@ Future Work Enabled:
 - Redesign the ship as an alien UAP with strobing lights.
 - Convert canvas HUD text to brighter sans-serif styling.
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music).
+
+## Generation 13
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-13-1781674959)
+
+Intent:
+Give the score chase the depth the project keeps pointing at. README states
+plainly that "Score is the reason to play again," and DIRECTOR.md lists
+"gameplay that rewards mastery" among its likes, yet through Generation 12 every
+kill was worth a flat 100 — there was no mechanical reward for playing
+aggressively or stringing kills together, so the score number measured survival
+time more than skill. The remaining Director notes are either a large spatial
+rewrite (a 20-screen world that would fight the accepted edge-buffer design) or
+cosmetic/infrastructure items (UAP ship, terrain structures, fonts, audio); the
+task asks to prefer a gameplay improvement, so the highest-value small, coherent
+mutation is to make sustained, skillful offense pay.
+
+Mutation:
+Added a kill-streak score multiplier — one coherent change to scoring, routing
+the two existing scored-kill sites through a single new function with no new
+entity array or update subsystem:
+
+- A new pure helper `comboMultiplier(combo, max)` returns the capped score
+  multiplier for a streak of N consecutive kills (a streak of 0/1 pays the base
+  x1; each further chained kill raises it up to `CFG.combo.max`). Exposed on
+  `window.__seed`.
+- `scoreKill()` advances `state.combo`, refreshes `state.comboTimer` to
+  `CFG.combo.window`, awards `CFG.enemy.score × comboMultiplier`, and pops a brief
+  `comboFlash`. Both the player-missile kill (`updateEnemies`) and the baited
+  crossfire kill (`updateEnemyMissiles`) now call it, so any engineered kill keeps
+  the chain alive — reinforcing the Generation 6 crossfire play.
+- `updateCombo(dt)` ticks the window down each playing frame and resets the
+  streak to nothing once it lapses without a kill, so the multiplier must be
+  re-earned. A ram (which already scored nothing) deliberately does not feed the
+  streak.
+- Feedback: a top-center "COMBO xN" readout (gold, hot-orange at the cap) with a
+  shrinking chain-window bar, shown only while a bonus streak is live (multiplier
+  above x1) and briefly enlarging when the multiplier ticks up.
+- All new behavior is two tunable values in `CFG.combo`. The header comment,
+  README ("The Game", "Current State"), and PROJECT_MAP were updated. The UAP
+  ship redesign, terrain structures, fonts, and audio were left for separate
+  generations to keep this a single idea.
+
+Rationale:
+This deepens the score chase the README centers on while *reinforcing* the
+accepted lineage rather than fighting it. It is almost purely additive — no
+control, damage, spawn, or movement change — so it carries little risk of making
+the game feel worse, yet it adds a genuine moment-to-moment decision: press the
+attack and cross into the crossfire to keep the chain alive, or play it safe and
+let the streak lapse. It directly serves the Director's "rewards mastery" and
+"interesting decisions" likes and the "replayability" vision target, and a single
+visible number that climbs is immediately legible — the opposite of the
+"spreadsheet gameplay" and "hidden information" the Director rejects. Letting
+baited crossfire kills feed the same streak ties the new system to the lineage's
+signature two-front geometry.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play
+  (`preview_console_logs` level=error returned none).
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all 17 assertions passed:
+  - `comboMultiplier`: (0,6)→1, (1,6)→1, (3,6)→3, (9,6)→6 (capped).
+  - Three chained player-missile kills inside the window built combo 1→2→3 and
+    scored 100, +200, +300 (total 600 = x1+x2+x3), refreshing the timer each kill
+    and popping `comboFlash` once combo ≥ 2.
+  - Letting the window lapse with no kill reset `combo` and `comboTimer` to 0.
+  - A crossfire kill (armed enemy missile striking an enemy) advanced the combo
+    and scored +100 — the second scored-kill path feeds the same streak.
+  - A ram added no score and did not advance the combo.
+- Visual confirmation: a frozen staged frame (live `update` no-opped so the rAF
+  loop could not overwrite it) showed the gold "COMBO x4" readout and its
+  shrinking window bar top-center alongside two plasma orbs with comet tails, a
+  gold player missile and a red enemy missile in flight, and the HUD intact — no
+  rendering regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Turns the score from a survival-time readout into a measure of skill, giving the
+player a positive, self-set goal (keep the chain alive) layered on top of the
+existing dodge-and-pivot combat without adding controls, menus, or hidden rules.
+The `scoreKill` chokepoint and the `combo`/`comboTimer` pattern are reusable
+substrate for further reward feedback — kill-streak audio stingers, score-pop
+particles, or multiplier-gated events.
+
+Future Work Enabled:
+- Audio/visual stingers on multiplier-up and streak-loss (pairs naturally with
+  the deferred audio note)
+- Tuning `CFG.combo.window`/`max` against spawn density so the streak is
+  sustainable but not automatic
+- Redesign the ship as an alien UAP with strobing lights — the deferred Director note
+- Build random small structures on the fixed terrain ridge — the deferred Director note
+- Convert canvas HUD text to brighter sans-serif styling — the deferred Director note

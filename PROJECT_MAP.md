@@ -31,9 +31,11 @@ restores hull, while the rarer gold "3X" one grants a timed spread-fire boost
 (every shot becomes a fan of homing missiles), with a countdown bar drawn under
 the ship. Either must be caught before it sinks past the ground. The starfield
 and ground ridge are stable visual references rather than parallax layers, so
-background motion no longer reads differently from enemies or crates. It runs as
-a single static page with no build step, no dependencies, and no server
-requirement — opening `index.html` is enough to play.
+background motion no longer reads differently from enemies or crates. Chaining
+kills before a short window lapses builds a score-multiplier streak (shown as a
+top-center COMBO readout), which baited crossfire kills also feed, deepening the
+score chase. It runs as a single static page with no build step, no dependencies,
+and no server requirement — opening `index.html` is enough to play.
 
 ## Files
 
@@ -50,7 +52,8 @@ The file is organized top-to-bottom into clear sections:
 - **Configuration (`CFG`)** — All tunable gameplay values (world/ground band,
   player movement / blaster heat, missile, enemy speed/fire cadence/fire
   telegraph, spawn pacing, crate pickups and their salvo-vs-health odds,
-  salvo-boost count/spread/duration) in one object. Balance changes live here.
+  salvo-boost count/spread/duration, kill-streak combo window/cap) in one object.
+  Balance changes live here.
 - **Pure helpers** — `clamp`, `rectsOverlap`, `lerp`, `randRange`,
   `offscreenX` (left/right edge test), `offscreen` (all-four-edges test for
   missiles), `angleDelta` / `steerAngle` (capped rotation toward a heading, the
@@ -58,13 +61,16 @@ The file is organized top-to-bottom into clear sections:
   (the horizontal range the player may occupy, given the edge buffer),
   `salvoOffsets` (the symmetric angular spread of a 3X salvo), `cycleHue`
   (advances a hue around the color wheel, the basis of the plasma-orb color
-  flashing). Side-effect free; the testable ones are exposed on `window.__seed`.
+  flashing), `comboMultiplier` (the capped score multiplier for a kill streak of
+  N consecutive kills). Side-effect free; the testable ones are exposed on
+  `window.__seed`.
 - **Canvas + input** — Keyboard state tracking and phase transitions
   (launch / restart).
 - **Game state** — A single `state` object rebuilt by `newState()` /
   `startGame()`. Holds the phase, score, the player (including `facing`, velocity, heat,
   and overheat lockout, plus a `salvo` boost timer), the crate `pickupTimer`,
-  and entity arrays (`missiles`, `enemyMissiles`, `enemies`, `pickups`,
+  the kill-streak fields (`combo`, `comboTimer`, `comboFlash`), and entity arrays
+  (`missiles`, `enemyMissiles`, `enemies`, `pickups`,
   `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
   `dir`, a randomized fire cooldown, a short `fireFlash` timer for shot
@@ -100,12 +106,17 @@ The file is organized top-to-bottom into clear sections:
   one missile; the timer decays each playing frame. Crates (`updatePickups`)
   parachute down on their own timer, swaying as they fall; flying into a `health`
   crate restores hull (capped at `maxHull`) while a `salvo` crate (re)starts the
-  boost window, and a crate that sinks past the ground is lost.
+  boost window, and a crate that sinks past the ground is lost. Every scored kill
+  — by player missile or baited crossfire — routes through `scoreKill`, which
+  advances the kill streak and awards `CFG.enemy.score × comboMultiplier`;
+  `updateCombo` resets the streak when the chain window (`CFG.combo.window`)
+  lapses without a kill (a ram is not a scored kill and does not feed it).
 - **Render** — Draws the stable starfield, fixed ground ridge, entities
   (including crates drawn as a parachute-and-emblem sprite —
   a green cross for health, a gold "3X" for the salvo boost — and a countdown bar
   under the ship while boosted), particle effects, HUD (score, best, hull,
-  blaster heat), and the ready / game-over overlays. The player ship is drawn in
+  blaster heat, and a top-center COMBO multiplier with a shrinking chain-window
+  bar while a streak is live), and the ready / game-over overlays. The player ship is drawn in
   a mirrored local frame so its nose, thruster, and muzzle face the direction of
   travel; enemies render as diffuse plasma orbs (a radial-gradient white-hot core
   and halo) that flash through cycling hues (`cycleHue`) and stream a tapering,

@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 12
+ * The Seed 2 — Generation 13
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
@@ -34,7 +34,9 @@
  * under the ship. The starfield and ground are stable combat references now, so
  * enemies, crates, missiles, and the background no longer appear to disagree
  * about how the field is moving while you dodge. Survive as the pressure ramps
- * up. Score is the reason to play again.
+ * up. Chaining kills before a short window lapses builds a score-multiplier
+ * streak, so pressing the attack is worth more than picking ships off one at a
+ * time. Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -130,6 +132,15 @@ const CFG = {
     startInterval: 1.3, // seconds between spawns at the start
     minInterval: 0.45, // fastest spawn rate
     rampSeconds: 75, // time to reach the fastest spawn rate
+  },
+
+  // A kill streak: each kill chained within a short window raises a score
+  // multiplier, so sustained aggression is worth more than picking off the odd
+  // ship. Let the window lapse without a kill and the streak resets to nothing —
+  // pressing the attack to keep it alive is a real gamble against playing safe.
+  combo: {
+    window: 2.5, // seconds after a kill to land the next before the streak resets
+    max: 6, // highest multiplier the streak can reach
   },
 
   // Health crates parachute down occasionally. The player flies into one to
@@ -253,6 +264,13 @@ function cycleHue(base, t, speed) {
   return (((base + t * speed) % 360) + 360) % 360;
 }
 
+// The score multiplier for a kill streak of `combo` consecutive kills, capped at
+// `max`. A streak of 0 or 1 pays the base (x1); each further chained kill raises
+// the multiplier up to the cap. Pure, so scoring stays deterministic/testable.
+function comboMultiplier(combo, max) {
+  return clamp(combo, 1, max);
+}
+
 // ---------------------------------------------------------------------------
 // Canvas + input
 // ---------------------------------------------------------------------------
@@ -304,6 +322,9 @@ function newState() {
     best: state ? state.best : 0,
     shake: 0,
     spawnTimer: 0,
+    combo: 0, // current kill-streak length (0 = no active streak)
+    comboTimer: 0, // seconds left to chain the next kill before the streak resets
+    comboFlash: 0, // brief pop when the multiplier ticks up
     pickupTimer: randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax),
     player: {
       x: CFG.width / 2 - CFG.player.w / 2,
@@ -439,9 +460,35 @@ function update(dt) {
     updateEnemies(dt);
     updateEnemyMissiles(dt);
     updatePickups(dt);
+    updateCombo(dt);
   }
 
   updateParticles(dt);
+}
+
+// Register a scored enemy kill: advance the kill streak, award score scaled by
+// the current multiplier, and pop the combo readout. Both the player's missiles
+// and baited crossfire route through here, so any engineered kill keeps the
+// streak alive — a rammed enemy is not a scored kill and does not feed it.
+function scoreKill() {
+  state.combo += 1;
+  state.comboTimer = CFG.combo.window;
+  state.score += CFG.enemy.score * comboMultiplier(state.combo, CFG.combo.max);
+  if (state.combo >= 2) state.comboFlash = 0.25;
+}
+
+// The kill streak survives only as long as kills keep landing inside the window.
+// Once the window lapses the streak resets to nothing, so the multiplier has to
+// be earned again — the pressure that makes chasing it a decision.
+function updateCombo(dt) {
+  if (state.comboFlash > 0) state.comboFlash = Math.max(0, state.comboFlash - dt);
+  if (state.combo > 0) {
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0) {
+      state.combo = 0;
+      state.comboTimer = 0;
+    }
+  }
 }
 
 function updateParticles(dt) {
@@ -696,7 +743,7 @@ function updateEnemyMissiles(dt) {
         if (rectsOverlap(m, e)) {
           state.enemies.splice(j, 1);
           spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ff5a6e", 14);
-          state.score += CFG.enemy.score;
+          scoreKill();
           fragged = true;
           break;
         }
@@ -755,7 +802,7 @@ function updateEnemies(dt) {
     if (hit) {
       state.enemies.splice(i, 1);
       spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ffd23c", 14);
-      state.score += CFG.enemy.score;
+      scoreKill();
       continue;
     }
 
@@ -1172,6 +1219,32 @@ function drawHUD() {
   ctx.fillStyle = "#5e6b8c";
   ctx.fillText("BEST " + String(state.best).padStart(6, "0"), CFG.width - 16, 30);
 
+  // Kill-streak multiplier — shown top-center only while a bonus streak is live
+  // (multiplier above x1), with a shrinking bar for the window left to chain the
+  // next kill. It pops briefly each time the multiplier ticks up.
+  if (state.combo >= 2) {
+    const mult = comboMultiplier(state.combo, CFG.combo.max);
+    const capped = mult >= CFG.combo.max;
+    const hot = capped ? "#ff7a3c" : "#ffd23c";
+    const cxm = CFG.width / 2;
+    const pop = 1 + clamp(state.comboFlash / 0.25, 0, 1) * 0.5;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = hot;
+    ctx.font = "bold " + Math.round(22 * pop) + "px 'Courier New', monospace";
+    ctx.fillText("COMBO x" + mult, cxm, 28);
+    const cbW = 120;
+    const cbH = 4;
+    const cbX = cxm - cbW / 2;
+    const cbY = 36;
+    const cbFrac = clamp(state.comboTimer / CFG.combo.window, 0, 1);
+    ctx.fillStyle = "#1a2440";
+    ctx.fillRect(cbX, cbY, cbW, cbH);
+    ctx.fillStyle = hot;
+    ctx.fillRect(cbX, cbY, cbW * cbFrac, cbH);
+    ctx.restore();
+  }
+
   // Hull bar.
   const barW = 180;
   const barH = 12;
@@ -1275,5 +1348,6 @@ if (typeof window !== "undefined") {
     playerBoundsX,
     salvoOffsets,
     cycleHue,
+    comboMultiplier,
   };
 }
