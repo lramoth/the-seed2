@@ -21,13 +21,15 @@ toward a top speed and it glides to a stop when released — while the camera ke
 it clear of the outer fifth of each side so threats are visible as they close.
 Firing launches enemy-seeking
 missiles that curve toward the nearest enemy ahead of them, while threats close
-in from both edges, flare red just before firing, and fire their own
-(deliberately less accurate) seeking missiles back. Those enemy missiles deal a
-lighter, recoverable hull hit than a ram and are indiscriminate — once armed,
-one that strikes another enemy detonates on it, so the player can bait the two
-fronts into culling each other. The player's blaster builds heat while firing
-and briefly locks out when overheated, with heat shown in the HUD. The hull only
-takes damage from an enemy missile or a ram.
+in from both edges. Some waves enter as two- or three-orb squadrons from one
+edge, sharing speed, drift, a loose vertical formation, and related hues so they
+read as a group rather than isolated ships. Each orb flares red just before
+firing and shoots its own (deliberately less accurate) seeking missile back.
+Those enemy missiles deal a lighter, recoverable hull hit than a ram and are
+indiscriminate — once armed, one that strikes another enemy detonates on it, so
+the player can bait the two fronts into culling each other. The player's blaster
+builds heat while firing and briefly locks out when overheated, with heat shown
+in the HUD. The hull only takes damage from an enemy missile or a ram.
 Occasionally a crate parachutes down from the top of the field; a green one
 restores hull, while the rarer gold "3X" one grants a timed spread-fire boost
 (every shot becomes a fan of homing missiles), with a countdown bar drawn under
@@ -56,8 +58,9 @@ The file is organized top-to-bottom into clear sections:
 - **Configuration (`CFG`)** — All tunable gameplay values (world length,
   ground band, camera/despawn margins, terrain structure density, player movement
   / blaster heat, missile, enemy speed/fire cadence/fire telegraph, spawn pacing,
-  crate pickups and their salvo-vs-health odds, salvo-boost count/spread/duration,
-  kill-streak combo window/cap) in one object. Balance changes live here.
+  enemy squadron chance/shape/stagger/timer cost, crate pickups and their
+  salvo-vs-health odds, salvo-boost count/spread/duration, kill-streak combo
+  window/cap) in one object. Balance changes live here.
 - **Pure helpers** — `clamp`, `rectsOverlap`, `lerp`, `randRange`,
   `offscreenX` (left/right viewport edge test, camera-aware with old screen-space
   defaults), `offscreen` (all-four-edges viewport test for missiles),
@@ -66,6 +69,7 @@ The file is organized top-to-bottom into clear sections:
   `worldToScreenX`, `groundY`, `playerBoundsX` (the horizontal safe band the
   camera preserves), `cameraForPlayer` (dead-zone camera follow within the long
   sector), `salvoOffsets` (the symmetric angular spread of a 3X salvo),
+  `squadronOffsets` (vertical slots for two- and three-orb enemy formations),
   `cycleHue` (advances a hue around the color wheel, the basis of the plasma-orb
   color flashing), `comboMultiplier` (the capped score multiplier for a kill
   streak of N consecutive kills). Side-effect free; the testable ones are exposed
@@ -78,11 +82,16 @@ The file is organized top-to-bottom into clear sections:
   `salvo` boost timer), the crate `pickupTimer`, the kill-streak fields
   (`combo`, `comboTimer`, `comboFlash`), and entity arrays (`missiles`,
   `enemyMissiles`, `enemies`, `pickups`, `particles`, `stars`, `structures`).
-- **Spawning / effects** — Enemies spawn from either visible camera edge (each
-  with a travel `dir`, a randomized fire cooldown, a short `fireFlash` timer for shot
-  feedback, a per-orb `hue` + `hueRate` for its color flashing, and a `trail` of
-  recent world-space centers for its light trail) on a
-  difficulty ramp; crates
+- **Spawning / effects** — Enemy waves spawn from either visible camera edge on a
+  difficulty ramp. `spawnEnemyWave` usually produces a lone orb but sometimes
+  produces a small squadron via `spawnSquadron`: two or three orbs from one side
+  with shared speed/drift, staggered entry x positions and fire cooldowns, a
+  loose vertical formation from `squadronOffsets`, related hues, and a shared
+  `squadron` id. The next spawn timer pays an extra cost per extra orb so groups
+  create a stronger front without flooding the field. Each enemy still carries a
+  travel `dir`, a short `fireFlash` timer for shot feedback, a per-orb `hue` +
+  `hueRate` for its color flashing, and a `trail` of recent world-space centers
+  for its light trail; crates
   (`spawnPickup`) drop from the top on an independent timer within the player's
   current camera band, each tagged a `kind` (`health` or the rarer `salvo`, by
   `CFG.pickup.salvoChance`); plus particle explosions.
@@ -98,13 +107,14 @@ The file is organized top-to-bottom into clear sections:
   rate, then advance along that heading, and are retired by `offscreen` or a
   short lifetime. Each player shot adds blaster heat; cooling happens every
   playing frame, and a full heat bar locks firing until it vents below the
-  release threshold. Enemies travel a signed direction and, once fully on-field,
-  return fire on a per-ship cooldown (`enemyFire`); each enemy also decays a
-  short `fireFlash` timer after shooting, records its current center into a
-  capped `trail` (`CFG.enemy.trailMax`) for its light trail, while the upcoming
-  shot telegraph is
-  derived from the remaining cooldown. A ship leaving either edge (`offscreenX`)
-  is simply removed — breaches are harmless. Enemy missiles
+  release threshold. Enemies travel a signed direction; squadron orbs use the
+  same speed and drift so they hold a loose group as they cross the visible
+  field. Once fully on-field, each orb returns fire on its own staggered
+  cooldown (`enemyFire`); each enemy also decays a short `fireFlash` timer after
+  shooting, records its current center into a capped `trail`
+  (`CFG.enemy.trailMax`) for its light trail, while the upcoming shot telegraph
+  is derived from the remaining cooldown. A ship leaving either edge
+  (`offscreenX`) is simply removed — breaches are harmless. Enemy missiles
   re-aim at the player every frame at a lower turn rate (`updateEnemyMissiles`,
   reusing `steerAngle`), so they seek but stay dodgeable; after a short arming
   delay (`CFG.enemyMissile.armTime`) they also detonate on — and score — any

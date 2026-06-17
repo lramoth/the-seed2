@@ -1320,3 +1320,80 @@ Future Work Enabled:
   game-over, and calm gameplay music).
 - Tune enemy missile damage further after playtesting against crate frequency
   and combo sustainability.
+
+## Generation 17
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-17-1781712326)
+
+Intent:
+Address the Director's current highest-priority pressure: have enemy ships form
+squadrons or groups. Through Generation 16, enemies spawned as independent
+single plasma orbs. That kept the two-front duel readable, but it made enemy
+pressure feel like scattered individual targets instead of purposeful fronts.
+The smallest coherent gameplay mutation is to make some enemy waves arrive as
+small formations.
+
+Mutation:
+Added grouped enemy waves:
+
+- New `CFG.squadron` values control squadron chance, two-vs-three size odds,
+  vertical spacing, entry spacing, staggered firing, and the extra spawn-timer
+  cost for extra orbs.
+- Added the pure helper `squadronOffsets`, exposed through `window.__seed`, to
+  keep two- and three-orb formations centered and readable.
+- Refactored enemy creation into `makeEnemy`, `spawnEnemy`, `spawnSquadron`,
+  and `spawnEnemyWave`.
+- Some spawn events now produce two or three color-related plasma orbs entering
+  from the same visible edge. They share speed and drift, keep a loose vertical
+  formation, enter with slight x spacing, and have staggered fire cooldowns so a
+  squadron reads as a front to answer rather than an unfair instant volley.
+- The next spawn timer is multiplied by a small cost for each extra orb in the
+  wave, so formations increase pressure without simply flooding the field.
+- README, PROJECT_MAP, and the game header were updated. Run instructions are
+  unchanged: open `index.html` directly, or serve the folder and visit it in a
+  browser.
+
+Rationale:
+This directly follows the Director's top note while reinforcing the accepted
+combat loop. A squadron creates a clearer tactical question than another lone
+orb: do you pivot to clear the grouped front, bait one side's missiles through
+the formation, or spend heat/spread-fire to cash in a combo before the staggered
+shots arrive? Matching speed, drift, and hue makes the grouping legible without
+adding new rules, controls, UI, or enemy classes. The staggered fire timers and
+spawn interval cost preserve playability.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Deterministic Node VM assertions passed:
+  - `squadronOffsets(1/2/3, 42)` returns `[0]`, `[0, -42]`, and
+    `[0, -42, 42]`.
+  - A forced three-orb squadron spawns from one edge with one shared squadron id,
+    matching direction, exact entry spacing, exact vertical spacing, shared
+    speed/drift, and fire cooldowns staggered by `CFG.squadron.fireStagger`.
+  - A forced triple wave applies the configured extra spawn-timer cost, while a
+    forced single wave keeps the base spawn interval.
+- Loaded the branch at `http://127.0.0.1:8765/`, launched a run, let it play for
+  several seconds, confirmed the 960x540 canvas rendered, and saw no browser
+  console errors.
+
+Effect on Project Direction:
+Moves enemy behavior from a stream of independent ships toward readable combat
+groups, making each front feel more intentional while keeping the game simple.
+Squadrons also make the existing systems matter more: spread fire can clear a
+cluster, combo scoring rewards quick formation clears, and crossfire baiting can
+turn a grouped wave against itself.
+
+Future Work Enabled:
+- Tune `CFG.squadron.chance`, `tripleChance`, `intervalCost`, and spacing after
+  playtesting against heat, combo, and crate frequency.
+- Add formation-specific visual or audio stingers if groups need stronger
+  readability.
+- Explore simple enemy variants inside the squadron system without adding large
+  rule sets.
+- Enhance the player's ship with a futuristic luminous glow.
+- Audio (blaster, enemy fire, kills, thrusters, powerups, hull reduction,
+  game-over, and calm gameplay music).

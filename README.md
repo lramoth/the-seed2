@@ -118,14 +118,14 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 16
+Generation 17
 
 A free-flight space combat loop set in a twenty-screen patrol sector, where the
 camera keeps the ship readable while the whole world scrolls in one shared
 frame: stars, ground, terrain structures, enemies, crates, missiles, and the
-player all agree about motion. The enemies are bright plasma orbs that
-flash through vivid colors, trail a thin light trail along their weaving path,
-and flare red before shooting
+player all agree about motion. The enemies are bright plasma orbs that sometimes
+enter as two- or three-orb squadrons from one edge, flash through vivid colors,
+trail a thin light trail along their weaving path, and flare red before shooting
 back; their missiles burn friend and foe alike but deal reduced hull damage, the
 player's blaster can overheat, the ship flies with momentum, and crates
 parachute in to be caught — health to patch the hull, a "3X" boost for a burst
@@ -155,11 +155,15 @@ controlled bursts keep you dangerous longer than holding Space forever. The
 enemies are *bright plasma orbs* that flash through vivid colors and stream a
 thin *light trail* tracing the weaving path they actually fly — so each threat's
 heading and drift read at a glance without the trail dominating the orb.
-They close in from *both* edges at once and *return fire* — a red charge
-ring and hot aiming bead flare around an orb just before it shoots, then it lobs
-its own seeking missile at you, slower and turning more lazily than yours, so you
-can out-fly and juke it; when one connects, it now strips a smaller chunk of
-hull so the mistake stings without ending the run too quickly. Those enemy
+Some waves now arrive as *small squadrons*: two or three color-matched orbs
+enter from one edge in a loose vertical formation, with shared speed and
+staggered fire timers, so the player reads them as a front to answer rather than
+as isolated targets. They close in from *both* edges at once and *return fire* —
+a red charge ring and hot aiming bead flare around an orb just before it shoots,
+then it lobs its own seeking missile at you, slower and turning more lazily than
+yours, so you can out-fly and juke it; when one connects, it now strips a
+smaller chunk of hull so the mistake stings without ending the run too quickly.
+Those enemy
 missiles are *indiscriminate*: once armed,
 one that catches another enemy detonates on it, so dodging out of the way can
 feed an enemy's shot into a ship on the far front — *bait that crossfire* and the

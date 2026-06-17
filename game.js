@@ -1,22 +1,24 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 16
+ * The Seed 2 — Generation 17
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
- * bright plasma orbs that flash through vivid colors and stream a thin light
- * trail along their weaving path, then flare red before firing so each threat's
- * heading and next shot read at a glance against the dark.
+ * bright plasma orbs that sometimes enter as small color-matched squadrons,
+ * flash through vivid colors, stream a thin light trail along their weaving
+ * path, and flare red before firing so each threat's heading, group, and next
+ * shot read at a glance against the dark.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
- * them. The enemies — drifting plasma orbs trailing thin light trails — close in from
- * BOTH edges and return fire: each flares red as it charges, then lobs its own
- * seeking missile at the player, but slower and turning more lazily than the
- * player's, so it seeks for real yet can be out-flown and juked; a hit hurts
- * without gutting the run, leaving more room to recover, chase crates, and keep
- * fighting. Those enemy
+ * them. The enemies — drifting plasma orbs trailing thin light trails — close in
+ * from BOTH edges, sometimes as two- or three-orb squadrons that share an entry
+ * side, speed, and loose vertical formation, then return fire: each flares red
+ * as it charges, then lobs its own seeking missile at the player, but slower and
+ * turning more lazily than the player's, so it seeks for real yet can be
+ * out-flown and juked; a hit hurts without gutting the run, leaving more room to
+ * recover, chase crates, and keep fighting. Those enemy
  * missiles are now indiscriminate — once armed, an enemy missile that strikes
  * another enemy detonates on it, so the two-front geometry can be turned against
  * them: slip out of the way and an enemy's shot may gut a ship on the far front.
@@ -144,6 +146,19 @@ const CFG = {
     startInterval: 1.3, // seconds between spawns at the start
     minInterval: 0.45, // fastest spawn rate
     rampSeconds: 75, // time to reach the fastest spawn rate
+  },
+
+  // Enemy flights sometimes enter as a small squadron instead of a lone orb.
+  // The group shares a side, speed, and drift so it reads as one formation, but
+  // shot cooldowns are staggered so it creates a front to answer rather than an
+  // instant wall of red missiles.
+  squadron: {
+    chance: 0.52,
+    tripleChance: 0.34, // chance a squadron is three orbs instead of two
+    verticalGap: 42,
+    entrySpacing: 42,
+    fireStagger: 0.24,
+    intervalCost: 0.55, // extra delay per extra orb spawned in one wave
   },
 
   // A kill streak: each kill chained within a short window raises a score
@@ -290,6 +305,18 @@ function salvoOffsets(count, spread) {
   const offs = [];
   for (let i = 0; i < count; i++) offs.push((i - mid) * spread);
   return offs;
+}
+
+// Vertical slots for a small enemy squadron, centered on the leader. The leader
+// takes the anchor lane, then wingmates alternate above and below it, keeping a
+// two- or three-orb group readable without building a large formation system.
+function squadronOffsets(count, gap) {
+  const offsets = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) offsets.push(0);
+    else offsets.push((i % 2 === 1 ? -1 : 1) * Math.ceil(i / 2) * gap);
+  }
+  return offsets;
 }
 
 // Advance a hue (degrees) around the color wheel from a per-entity `base` at
@@ -441,32 +468,87 @@ function currentSpawnInterval() {
   return lerp(CFG.spawn.startInterval, CFG.spawn.minInterval, t);
 }
 
-function spawnEnemy() {
+function makeEnemy(options = {}) {
   const speedRamp = clamp(state.time / CFG.spawn.rampSeconds, 0, 1);
   const maxSpeed = lerp(CFG.enemy.maxSpeed, CFG.enemy.maxSpeed + 90, speedRamp);
   // Threats close in from either visible edge of the camera. dir is the
   // direction they travel through the shared world.
-  const fromLeft = Math.random() < 0.5;
-  state.enemies.push({
-    x: fromLeft ? state.cameraX - CFG.enemy.w : state.cameraX + CFG.width + CFG.enemy.w,
-    y: randRange(20, playBottom() - CFG.enemy.h - 20),
+  const fromLeft = options.fromLeft ?? (Math.random() < 0.5);
+  return {
+    x:
+      options.x ??
+      (fromLeft ? state.cameraX - CFG.enemy.w : state.cameraX + CFG.width + CFG.enemy.w),
+    y: options.y ?? randRange(20, playBottom() - CFG.enemy.h - 20),
     w: CFG.enemy.w,
     h: CFG.enemy.h,
     dir: fromLeft ? 1 : -1,
-    speed: randRange(CFG.enemy.minSpeed, maxSpeed),
+    speed: options.speed ?? randRange(CFG.enemy.minSpeed, maxSpeed),
     // Gentle vertical drift makes enemies feel alive and harder to line up.
-    drift: randRange(-40, 40),
-    phase: Math.random() * Math.PI * 2,
+    drift: options.drift ?? randRange(-40, 40),
+    phase: options.phase ?? Math.random() * Math.PI * 2,
     // Time until this ship's next shot (also staggers the very first one).
-    fireCooldown: randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax),
+    fireCooldown:
+      options.fireCooldown ?? randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax),
     fireFlash: 0,
     // Plasma-orb color: a random starting hue and its own cycle rate, so every
     // orb flashes through vivid colors independently of its neighbors.
-    hue: Math.random() * 360,
-    hueRate: randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax),
+    hue: options.hue ?? Math.random() * 360,
+    hueRate: options.hueRate ?? randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax),
     // Recent center positions (world-space) for the light trail, newest last.
     trail: [],
-  });
+    squadron: options.squadron ?? null,
+  };
+}
+
+function spawnEnemy(options = {}) {
+  state.enemies.push(makeEnemy(options));
+  return 1;
+}
+
+function spawnSquadron(count) {
+  const size = clamp(count, 2, 3);
+  const fromLeft = Math.random() < 0.5;
+  const speedRamp = clamp(state.time / CFG.spawn.rampSeconds, 0, 1);
+  const maxSpeed = lerp(CFG.enemy.maxSpeed, CFG.enemy.maxSpeed + 90, speedRamp);
+  const offsets = squadronOffsets(size, CFG.squadron.verticalGap);
+  const minOffset = Math.min(...offsets);
+  const maxOffset = Math.max(...offsets);
+  const minY = 20 - minOffset;
+  const maxY = playBottom() - CFG.enemy.h - 20 - maxOffset;
+  const anchorY = randRange(minY, Math.max(minY, maxY));
+  const baseX = fromLeft
+    ? state.cameraX - CFG.enemy.w
+    : state.cameraX + CFG.width + CFG.enemy.w;
+  const entryDir = fromLeft ? -1 : 1;
+  const baseSpeed = randRange(CFG.enemy.minSpeed, maxSpeed);
+  const drift = randRange(-34, 34);
+  const phase = Math.random() * Math.PI * 2;
+  const fireBase = randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax);
+  const hueBase = Math.random() * 360;
+  const hueRate = randRange(CFG.enemy.hueRateMin, CFG.enemy.hueRateMax);
+  const squadron = "sq-" + Math.floor(state.time * 1000) + "-" + state.enemies.length;
+
+  for (let i = 0; i < size; i++) {
+    spawnEnemy({
+      fromLeft,
+      x: baseX + entryDir * CFG.squadron.entrySpacing * i,
+      y: anchorY + offsets[i],
+      speed: baseSpeed,
+      drift,
+      phase,
+      fireCooldown: fireBase + CFG.squadron.fireStagger * i,
+      hue: (hueBase + i * 18) % 360,
+      hueRate,
+      squadron,
+    });
+  }
+  return size;
+}
+
+function spawnEnemyWave() {
+  if (Math.random() >= CFG.squadron.chance) return spawnEnemy();
+  const count = Math.random() < CFG.squadron.tripleChance ? 3 : 2;
+  return spawnSquadron(count);
 }
 
 // A crate enters from the top and parachutes down. It spawns within the
@@ -686,8 +768,9 @@ function enemyFire(e) {
 function updateSpawning(dt) {
   state.spawnTimer -= dt;
   if (state.spawnTimer <= 0) {
-    spawnEnemy();
-    state.spawnTimer = currentSpawnInterval();
+    const spawned = spawnEnemyWave();
+    state.spawnTimer =
+      currentSpawnInterval() * (1 + Math.max(0, spawned - 1) * CFG.squadron.intervalCost);
   }
 }
 
@@ -1510,6 +1593,7 @@ if (typeof window !== "undefined") {
     playerBoundsX,
     cameraForPlayer,
     salvoOffsets,
+    squadronOffsets,
     cycleHue,
     comboMultiplier,
   };
