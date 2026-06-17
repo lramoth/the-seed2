@@ -8,10 +8,12 @@ The primary goal is fun gameplay.
 
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
-Playtesting suggests:
+Playtesting suggests (in priority order):
 - Player movement though the space both left and right should be infinite. 
 - The player's ship should not be able to move to either edge. There should be about a 20% buffer from the edge so that the user can see enemies quickly.
 - Allow momentum in the user's movements.
+- Enemies should come from both the left and right sides of the screen.
+- Enemies shouldn't enter and exit at exactly the same height of thte screen. 
 - Allow the space to have occasional health powerups which increase the player's health stat.
 - Enemy missles should be able to kill other enemies.
 - Enemies should be bright diffuse plasma orbs (appear commet like) with plasma tails which are vibrant and flash different colors.
