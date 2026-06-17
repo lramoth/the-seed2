@@ -9,7 +9,7 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Redesign our ship to look like an alien UAP with bright strobing lights.
+- Redesign our ship to look like a triangular UAP with slow flashing lights on each corner. Make the ship seem to have a 2.5D perspective since we're looking at it from the side.
 - Have enemy ships form squadrons or groups.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
