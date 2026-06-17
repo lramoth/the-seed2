@@ -9,11 +9,8 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- The player's world should appear at least 20 screens in length.
-- Enemies should spawn from both the left and right side of the screen and move left or right, depending on which side they spawned from.
 - Improve the enemy plasma orb tails so that they appear like a light trail.
 - Redesign our ship to look like an alien UAP with bright strobing lights.
-- Build random small structures on the terrain.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
 - Sound effects are needed for blaster, destroyed enemies, game over, thrusters, gameplay music
