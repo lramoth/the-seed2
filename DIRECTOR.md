@@ -9,7 +9,6 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order highest to lowest):
-- Sound effects are needed for blaster, destroyed enemies, game over, thrusters, powerups, hull reduction, calm and soothing gameplay music, and anything else that makes the gameplay addicting.
 - Enhance the appearance of our ship so that has a futuristic luminous glow.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
