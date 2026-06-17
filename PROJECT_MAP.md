@@ -29,8 +29,10 @@ in the HUD. The hull only takes damage from an enemy missile or a ram.
 Occasionally a crate parachutes down from the top of the field; a green one
 restores hull, while the rarer gold "3X" one grants a timed spread-fire boost
 (every shot becomes a fan of homing missiles), with a countdown bar drawn under
-the ship. Either must be caught before it sinks past the ground. It runs as a
-single static page with no build step, no dependencies, and no server
+the ship. Either must be caught before it sinks past the ground. The starfield
+and ground ridge are stable visual references rather than parallax layers, so
+background motion no longer reads differently from enemies or crates. It runs as
+a single static page with no build step, no dependencies, and no server
 requirement — opening `index.html` is enough to play.
 
 ## Files
@@ -61,9 +63,9 @@ The file is organized top-to-bottom into clear sections:
   (launch / restart).
 - **Game state** — A single `state` object rebuilt by `newState()` /
   `startGame()`. Holds the phase, score, the player (including `facing`, velocity, heat,
-  and overheat lockout, plus a `salvo` boost timer), per-frame `scrollDX` /
-  accumulated `groundScroll`, the crate `pickupTimer`, and entity arrays
-  (`missiles`, `enemyMissiles`, `enemies`, `pickups`, `particles`, `stars`).
+  and overheat lockout, plus a `salvo` boost timer), the crate `pickupTimer`,
+  and entity arrays (`missiles`, `enemyMissiles`, `enemies`, `pickups`,
+  `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
   `dir`, a randomized fire cooldown, a short `fireFlash` timer for shot
   feedback, and a per-orb `hue` + `hueRate` for its color flashing) on a
@@ -76,9 +78,9 @@ The file is organized top-to-bottom into clear sections:
   retains velocity (`player.vx` / `vy`), with drag bleeding it off when input
   stops, a capped top speed, and a horizontal clamp (`playerBoundsX`) that keeps
   the ship out of the outer edge buffer — hitting a bound zeroes that axis's
-  velocity. The player's actual horizontal travel
-  (`scrollDX`) drives the background parallax — the world only moves when the
-  player does. Player missiles carry a heading angle: each frame they steer
+  velocity. Background stars and the ground ridge stay fixed, so the combat
+  field has one readable screen frame instead of multiple apparent movement
+  layers. Player missiles carry a heading angle: each frame they steer
   toward the nearest enemy *ahead* of them (`nearestSeekTarget`) at a capped turn
   rate, then advance along that heading, and are retired by `offscreen` or a
   short lifetime. Each player shot adds blaster heat; cooling happens every
@@ -99,8 +101,8 @@ The file is organized top-to-bottom into clear sections:
   parachute down on their own timer, swaying as they fall; flying into a `health`
   crate restores hull (capped at `maxHull`) while a `salvo` crate (re)starts the
   boost window, and a crate that sinks past the ground is lost.
-- **Render** — Draws the movement-driven parallax starfield, rolling ground
-  terrain, entities (including crates drawn as a parachute-and-emblem sprite —
+- **Render** — Draws the stable starfield, fixed ground ridge, entities
+  (including crates drawn as a parachute-and-emblem sprite —
   a green cross for health, a gold "3X" for the salvo boost — and a countdown bar
   under the ship while boosted), particle effects, HUD (score, best, hull,
   blaster heat), and the ready / game-over overlays. The player ship is drawn in

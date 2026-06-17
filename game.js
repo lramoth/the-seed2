@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 11
+ * The Seed 2 — Generation 12
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
@@ -31,10 +31,10 @@
  * to break formation and cross the fire to reach it before it sinks past the
  * ground. Some crates are instead a gold "3X" weapon boost — catch one and every
  * trigger pull fires a homing spread for a few seconds, shown by a countdown bar
- * under the ship. The world only moves
- * when the player moves — a parallax starfield and rolling ground terrain make
- * that self-directed flight legible. Survive as the pressure ramps up. Score is
- * the reason to play again.
+ * under the ship. The starfield and ground are stable combat references now, so
+ * enemies, crates, missiles, and the background no longer appear to disagree
+ * about how the field is moving while you dodge. Survive as the pressure ramps
+ * up. Score is the reason to play again.
  *
  * Everything runs in a single canvas with no build step: open index.html.
  */
@@ -305,8 +305,6 @@ function newState() {
     shake: 0,
     spawnTimer: 0,
     pickupTimer: randRange(CFG.pickup.intervalMin, CFG.pickup.intervalMax),
-    scrollDX: 0, // player's horizontal travel this frame, drives parallax
-    groundScroll: 0, // accumulated ground-terrain offset
     player: {
       x: CFG.width / 2 - CFG.player.w / 2,
       y: CFG.height / 2 - CFG.player.h / 2,
@@ -335,23 +333,17 @@ function newState() {
 
 function makeStars() {
   const stars = [];
-  // Three depth layers. Nearer layers (higher parallax) slide faster as the
-  // player flies, selling self-directed motion instead of an automatic scroll.
-  const layers = [
-    { count: 40, parallax: 0.2, size: 1, alpha: 0.35 },
-    { count: 30, parallax: 0.5, size: 1.5, alpha: 0.55 },
-    { count: 18, parallax: 1.0, size: 2, alpha: 0.85 },
-  ];
-  for (const layer of layers) {
-    for (let i = 0; i < layer.count; i++) {
-      stars.push({
-        x: Math.random() * CFG.width,
-        y: Math.random() * CFG.height,
-        parallax: layer.parallax,
-        size: layer.size,
-        alpha: layer.alpha,
-      });
-    }
+  // A single stable starfield keeps the combat frame readable. Earlier
+  // parallax layers implied that the background moved differently from enemies
+  // and pickups; now the stars provide atmosphere without competing with them.
+  for (let i = 0; i < 88; i++) {
+    const bright = Math.random();
+    stars.push({
+      x: Math.random() * CFG.width,
+      y: Math.random() * CFG.height,
+      size: bright > 0.82 ? 2 : bright > 0.48 ? 1.5 : 1,
+      alpha: lerp(0.3, 0.85, bright),
+    });
   }
   return stars;
 }
@@ -440,7 +432,6 @@ function update(dt) {
   state.time += dt;
   if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 60);
 
-  state.scrollDX = 0; // set by updatePlayer; stays 0 when not flying
   if (state.phase === "playing") {
     updatePlayer(dt);
     updateSpawning(dt);
@@ -450,20 +441,7 @@ function update(dt) {
     updatePickups(dt);
   }
 
-  // The world only moves because the player moved through it.
-  state.groundScroll += state.scrollDX * 0.6;
-  updateStars(dt);
   updateParticles(dt);
-}
-
-function updateStars(dt) {
-  // Stars slide opposite the player's travel, faster for nearer layers, and
-  // wrap around either edge so the field is seamless in both directions.
-  for (const s of state.stars) {
-    s.x -= state.scrollDX * s.parallax;
-    if (s.x < 0) s.x += CFG.width;
-    else if (s.x > CFG.width) s.x -= CFG.width;
-  }
 }
 
 function updateParticles(dt) {
@@ -517,14 +495,12 @@ function updatePlayer(dt) {
   // Integrate, then clamp inside the field. Hitting a bound kills that axis's
   // velocity so momentum doesn't pin the ship against the wall.
   const bounds = playerBoundsX(CFG.width, p.w, CFG.player.edgeBuffer);
-  const prevX = p.x;
   const nextX = p.x + p.vx * dt;
   p.x = clamp(nextX, bounds.lo, bounds.hi);
   if (p.x !== nextX) p.vx = 0;
   const nextY = p.y + p.vy * dt;
   p.y = clamp(nextY, 0, playBottom() - p.h);
   if (p.y !== nextY) p.vy = 0;
-  state.scrollDX = p.x - prevX; // how far we actually flew this frame
 
   if (p.cooldown > 0) p.cooldown -= dt;
   if (p.heat > 0) {
@@ -861,17 +837,15 @@ function drawStars() {
   ctx.globalAlpha = 1;
 }
 
-// Distant rolling terrain along the bottom. Two layered sine waves give a
-// seamless ridge that slides with the player, anchoring left/right navigation.
+// Distant terrain along the bottom. Two layered sine waves give a stable ridge
+// that anchors the combat frame without sliding separately from enemies/crates.
 function drawGround() {
   const top = playBottom();
-  const off = state.groundScroll;
   ctx.fillStyle = "#0a1226";
   ctx.beginPath();
   ctx.moveTo(0, CFG.height);
   for (let x = 0; x <= CFG.width; x += 8) {
-    const w = x + off;
-    const y = top + Math.sin(w * 0.012) * 10 + Math.sin(w * 0.031) * 6;
+    const y = top + Math.sin(x * 0.012) * 10 + Math.sin(x * 0.031) * 6;
     ctx.lineTo(x, y);
   }
   ctx.lineTo(CFG.width, CFG.height);
@@ -883,8 +857,7 @@ function drawGround() {
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = 0; x <= CFG.width; x += 8) {
-    const w = x + off;
-    const y = top + Math.sin(w * 0.012) * 10 + Math.sin(w * 0.031) * 6;
+    const y = top + Math.sin(x * 0.012) * 10 + Math.sin(x * 0.031) * 6;
     if (x === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }

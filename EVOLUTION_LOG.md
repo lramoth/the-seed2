@@ -934,3 +934,70 @@ Future Work Enabled:
 - Convert canvas HUD text to brighter sans-serif styling — the deferred Director
   note.
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music).
+
+## Generation 12
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-17
+
+Commit / PR: (branch gen-12-1781674152)
+
+Intent:
+Remove the confusing movement-frame conflict called out in the current Director
+notes. Generations 2 and 7 made the background slide when the player moved, but
+the Director now explicitly asks to remove the near/far starscape effect and the
+parallax that makes enemies and powerups appear to move differently from the
+player's current direction. The smallest coherent mutation is to make the
+combat field use one stable screen frame again.
+
+Mutation:
+Removed movement-driven background parallax:
+
+- Removed the `scrollDX` / `groundScroll` state and the `updateStars` parallax
+  update path.
+- Replaced the layered moving starfield with a single stable starfield. Stars
+  still vary in size and brightness for atmosphere, but they no longer carry
+  per-layer parallax values or shift when the player flies.
+- Anchored the ground ridge so it stays fixed as a bottom reference instead of
+  sliding independently from enemies, crates, and missiles.
+- Updated the header comment, README, and PROJECT_MAP to describe the stable
+  battlefield backdrop. Run instructions are unchanged: open `index.html`
+  directly, or serve the folder and visit it in a browser.
+
+Rationale:
+This deliberately changes an accepted motion cue because the Director's latest
+playtest notes identify that cue as disorienting. The game already asks the
+player to read two fronts, enemy charge tells, missile crossfire, blaster heat,
+and falling crates; a background that moves in a different apparent frame adds
+visual noise without improving those decisions. Keeping the stars and ground
+fixed makes dodging, crate chasing, and crossfire baiting easier to evaluate
+while preserving the actual combat mechanics, momentum, enemy spawning, and
+powerups.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Deterministic runtime simulation with a stubbed canvas passed:
+  - Starting a run and holding right moved the player.
+  - Star positions, sizes, and alpha values stayed unchanged during player
+    movement.
+  - Stars no longer carry a `parallax` property.
+  - The old `scrollDX` and `groundScroll` state fields are no longer present.
+- Served the folder with `python3 -m http.server 8765`; `curl -I` returned
+  `200 OK` for `/` and `/game.js`.
+
+Effect on Project Direction:
+Improves playability and clarity by removing a confusing visual system rather
+than adding a new one. The field now reads as a stable combat arena where
+enemies, crates, missiles, and the background agree about the player's frame of
+reference.
+
+Future Work Enabled:
+- If the Director still wants a world that appears 20 screens long, implement it
+  as one shared world/camera coordinate system so enemies, pickups, terrain, and
+  background all agree.
+- Build random small structures on the fixed terrain ridge without inheriting
+  the old parallax confusion.
+- Redesign the ship as an alien UAP with strobing lights.
+- Convert canvas HUD text to brighter sans-serif styling.
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music).

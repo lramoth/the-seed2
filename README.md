@@ -118,13 +118,15 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 11
+Generation 12
 
 A free-flight space combat loop where the enemies are bright plasma orbs that
 flash through vivid colors, trail comet tails, and flare red before shooting
 back; their missiles burn friend and foe alike, the player's blaster can
 overheat, the ship flies with momentum, and crates parachute in to be caught —
-health to patch the hull, a "3X" boost for a burst of spread fire.
+health to patch the hull, a "3X" boost for a burst of spread fire. The
+starfield and ground are stable combat references, so movement no longer makes
+background layers drift differently from enemies or powerups.
 
 ### The Game
 
@@ -161,8 +163,9 @@ hull*; the rarer *gold "3X" crates* grant a few seconds of *spread fire*, where
 every trigger pull launches a fan of homing missiles instead of one, with a
 *countdown bar under your ship* showing the time left — catch one and press the
 advantage before it runs out.
-The world only moves as you move through it — a parallax starfield and rolling
-ground terrain mark your heading. Score is the reason to play again.
+The starfield and ground stay fixed as a readable combat backdrop, so enemies,
+crates, missiles, and the background all share the same screen frame while you
+dodge. Score is the reason to play again.
 
 ### Controls
 
