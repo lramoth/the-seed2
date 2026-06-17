@@ -664,3 +664,107 @@ Future Work Enabled:
 - Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Tuning crate drop rate / heal amount / fall speed against spawn pacing via `CFG`
+
+## Generation 9
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-9-1781669814)
+
+Intent:
+Give the player the offensive power-up the Director asks for and turn the Gen 8
+crate into a real choice between two rewards. DIRECTOR.md asks for "shooting
+boosts that allow the player to shoot multiple missiles at a time for a limited
+time" that "can drop from parachutes like health does. Example: 3X. Show a
+progress bar below the user's ship to show how long the shooter boost exists."
+Generation 8 built the parachute-crate subsystem and listed this exact item —
+"Multi-missile salvo power-up delivered by the same parachute crate, with the
+duration bar the Director described" — as its first enabled-but-unaddressed
+future work. Through Generation 8 every crate was a health crate and the only
+reason to chase one was to recover; there was no positive offensive objective.
+The highest-value mutation is to add the boost crate on top of the existing
+subsystem.
+
+Mutation:
+Crates now come in two kinds and a gold "3X" crate grants timed spread fire —
+one coherent change reusing the Gen 8 pickup subsystem, the collision path, and
+the player-bounds helper, with no new array or update loop:
+
+- `spawnPickup` tags each crate with a `kind`: `health` (the existing hull
+  patch) or the rarer `salvo`, chosen by `CFG.pickup.salvoChance`. Both fall,
+  sway, and are caught/lost exactly as before.
+- Catching a `salvo` crate sets `player.salvo` to `CFG.salvo.duration`; the
+  timer decays each playing frame in `updatePlayer`. While it is positive,
+  `fire` launches a symmetric spread of `CFG.salvo.count` homing missiles
+  (angles from the new pure helper `salvoOffsets`, `CFG.salvo.spread` apart)
+  instead of one. Each missile still homes independently, so the boost widens
+  the front you cover rather than stacking fire on a single target — it
+  reinforces the lineage's "homing forgives vertical drift" identity. Heat is
+  charged per trigger pull, not per missile, so the boost reads as a clean
+  reward.
+- Feedback: the boosted ship is tinted gold for the whole window, a gold
+  countdown bar is drawn directly under the ship (`drawSalvoBar`, in world space
+  so it tracks the ship — exactly the Director's "progress bar below the user's
+  ship"), and the salvo crate wears a gold canopy and a "3X" emblem so it reads
+  at a glance against the green health crate and the red enemy fire.
+- New pure helper `salvoOffsets` exposed on `window.__seed`. Header comment,
+  ready-screen copy, README, and PROJECT_MAP updated. Plasma-orb visuals, the
+  UAP ship redesign, sans-serif fonts, and audio were left for separate
+  generations to keep this a single idea.
+
+Rationale:
+This implements a named Director note while *reinforcing* the accepted lineage
+rather than fighting it. Generation 8 made the crate a push-your-luck detour
+("do I cross the crossfire to recover?"); Gen 9 deepens that same decision by
+making the crate a *choice of reward* — break formation for hull when hurt, or
+for offense when you can capitalize — and adds a follow-on decision once boosted:
+press the advantage before the bar empties. It is almost purely additive (no
+control or damage-model change), so it carries little risk of making the game
+feel worse, and the boost is self-limiting: the crate is rare, the window short,
+and reaching it still costs you your favourable position under the Gen 7 momentum
+model. All new behavior is tunable from `CFG.salvo` and `CFG.pickup.salvoChance`.
+
+Tests / Verification:
+- `node --check game.js` passed; no browser console errors during play.
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all 14 assertions passed:
+  - `salvoOffsets(3, 0.16)` returned `[-0.16, 0, 0.16]`; `salvoOffsets(1, …)`
+    returned `[0]`.
+  - With no boost, `fire` launched exactly one missile at angle 0.
+  - With the boost active, `fire` launched exactly `CFG.salvo.count` (3) missiles
+    at the symmetric spread `[-0.16, 0, 0.16]`, and facing left the same spread
+    landed around PI — the spread reads the same fired either way.
+  - A salvo burst added exactly one `heatPerShot` increment (heat per trigger
+    pull, not per missile).
+  - A `salvo` crate overlapping the player set `player.salvo` to the full
+    duration, did NOT change hull, and was consumed; a `health` crate still
+    healed (hull 50 → 84).
+  - The boost timer decayed by dt in `updatePlayer` (1.0 → 0.9 over 0.1s).
+  - `spawnPickup` assigned a valid `kind`.
+- Visual confirmation: a staged, frozen frame showed a green health crate and a
+  gold "3X" crate parachuting, the gold-tinted boosted ship firing a gold spread
+  with its gold countdown bar underneath, and red enemies/fire on both fronts —
+  the two crate kinds clearly distinct, no rendering regressions.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Adds the first offensive power-up and turns the crate from a single recovery
+option into a meaningful choice of reward, giving the player a positive objective
+to chase and a short window of mastery to exploit. The `kind`-tagged pickup, the
+`player.salvo` timed-boost pattern, the under-ship duration bar, and the
+`salvoOffsets` helper are reusable substrate for further boosts (wider heat
+capacity, faster cooling, shields) and for the multi-fire weapon variety the
+Director may want next.
+
+Future Work Enabled:
+- More boost crate kinds reusing the same `kind` + timed-boost pattern (shield,
+  rapid cooling, overcharge)
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Redesign the ship as an alien UAP with strobing lights — the deferred Director note
+- Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Tuning salvo count / spread / duration and `salvoChance` against spawn pacing
+  via `CFG`

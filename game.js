@@ -1,9 +1,10 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 8
+ * The Seed 2 — Generation 9
  * Free-flight space combat where enemy fire burns friend and foe alike, the
- * ship flies with momentum, and health crates parachute in to be caught.
+ * ship flies with momentum, and crates parachute in to be caught — health to
+ * patch the hull, a "3X" boost for a burst of spread fire.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
@@ -24,7 +25,9 @@
  * outer edges so threats are visible before they close. Now and then a health
  * crate parachutes down from the top: fly into it to patch the hull, but you have
  * to break formation and cross the fire to reach it before it sinks past the
- * ground. The world only moves
+ * ground. Some crates are instead a gold "3X" weapon boost — catch one and every
+ * trigger pull fires a homing spread for a few seconds, shown by a countdown bar
+ * under the ship. The world only moves
  * when the player moves — a parallax starfield and rolling ground terrain make
  * that self-directed flight legible. Survive as the pressure ramps up. Score is
  * the reason to play again.
@@ -129,6 +132,19 @@ const CFG = {
     // grabbing one matters; the timer is independent of enemy spawning.
     intervalMin: 9,
     intervalMax: 14,
+    // A drop is sometimes a weapon-boost ("3X") crate instead of a health crate.
+    // Boost crates are the rarer find, so chasing one is a genuine gamble.
+    salvoChance: 0.4,
+  },
+
+  // The "3X" weapon boost a salvo crate grants for a limited time: each shot
+  // fires a spread of homing missiles instead of one. It is temporary and the
+  // crate is rare, so it is a burst of power you cross the crossfire to earn,
+  // not a permanent upgrade.
+  salvo: {
+    count: 3, // missiles launched per shot while the boost is active
+    spread: 0.16, // radians between adjacent missiles in the spread
+    duration: 7, // seconds the boost lasts after pickup
   },
 };
 
@@ -203,6 +219,18 @@ function playerBoundsX(width, w, buffer) {
   return { lo: margin, hi: width - margin - w };
 }
 
+// Symmetric angular offsets for a salvo of `count` missiles, `spread` radians
+// apart and centered on 0 — e.g. (3, 0.16) → [-0.16, 0, 0.16]. The set is
+// symmetric, so it reads the same fired left or right and a single straight
+// shot (count <= 1) is just [0].
+function salvoOffsets(count, spread) {
+  if (count <= 1) return [0];
+  const mid = (count - 1) / 2;
+  const offs = [];
+  for (let i = 0; i < count; i++) offs.push((i - mid) * spread);
+  return offs;
+}
+
 // ---------------------------------------------------------------------------
 // Canvas + input
 // ---------------------------------------------------------------------------
@@ -269,6 +297,7 @@ function newState() {
       hull: CFG.player.maxHull,
       heat: 0,
       overheated: false,
+      salvo: 0, // seconds of "3X" spread-fire boost remaining (0 = off)
       flash: 0, // brief hit flash timer
       heal: 0, // brief heal flash timer (green) when a crate is grabbed
       muzzle: 0, // muzzle flash timer
@@ -340,12 +369,14 @@ function spawnEnemy() {
   });
 }
 
-// A health crate enters from the top and parachutes down. It spawns within the
+// A crate enters from the top and parachutes down. It spawns within the
 // player's horizontal band so it is always reachable, then sways as it falls.
+// Most crates restore hull; some are the rarer "3X" weapon boost.
 function spawnPickup() {
   const bounds = playerBoundsX(CFG.width, CFG.pickup.w, CFG.player.edgeBuffer);
   const baseX = randRange(bounds.lo, bounds.hi);
   state.pickups.push({
+    kind: Math.random() < CFG.pickup.salvoChance ? "salvo" : "health",
     baseX, // sway oscillates around this
     x: baseX, // updated to baseX + sway each frame
     y: -CFG.pickup.h - 24,
@@ -475,6 +506,7 @@ function updatePlayer(dt) {
   if (p.overheated && p.heat <= CFG.player.overheatRelease) {
     p.overheated = false;
   }
+  if (p.salvo > 0) p.salvo = Math.max(0, p.salvo - dt);
   if (p.flash > 0) p.flash -= dt;
   if (p.heal > 0) p.heal -= dt;
   if (p.muzzle > 0) p.muzzle -= dt;
@@ -487,19 +519,26 @@ function updatePlayer(dt) {
 
 function fire() {
   const p = state.player;
-  // The missile leaves the nose along the facing direction. Its heading is an
-  // angle so it can steer afterward; 0 points right, PI points left.
-  const angle = p.facing === 1 ? 0 : Math.PI;
+  // The missiles leave the nose along the facing direction. Heading is an angle
+  // so they can steer afterward; 0 points right, PI points left. With the "3X"
+  // salvo boost active, a single trigger pull launches a symmetric spread; each
+  // missile still homes independently, so the spread widens the front you cover
+  // rather than concentrating fire on one target.
+  const base = p.facing === 1 ? 0 : Math.PI;
   const nose = p.facing === 1 ? p.x + p.w : p.x - CFG.missile.w;
-  state.missiles.push({
-    x: nose,
-    y: p.y + p.h / 2 - CFG.missile.h / 2,
-    w: CFG.missile.w,
-    h: CFG.missile.h,
-    angle,
-    speed: CFG.missile.speed,
-    life: CFG.missile.life,
-  });
+  const offsets = p.salvo > 0 ? salvoOffsets(CFG.salvo.count, CFG.salvo.spread) : [0];
+  for (const off of offsets) {
+    state.missiles.push({
+      x: nose,
+      y: p.y + p.h / 2 - CFG.missile.h / 2,
+      w: CFG.missile.w,
+      h: CFG.missile.h,
+      angle: base + off,
+      speed: CFG.missile.speed,
+      life: CFG.missile.life,
+    });
+  }
+  // Heat is per trigger pull, not per missile, so the boost stays a clear reward.
   p.heat = clamp(p.heat + CFG.player.heatPerShot, 0, 1);
   if (p.heat >= 1) p.overheated = true;
   p.muzzle = 0.06;
@@ -554,9 +593,14 @@ function updatePickups(dt) {
 
     if (rectsOverlap(c, p)) {
       state.pickups.splice(i, 1);
-      p.hull = Math.min(CFG.player.maxHull, p.hull + CFG.pickup.heal);
-      p.heal = 0.4; // green flash on the ship + hull bar as feedback
-      spawnExplosion(c.x + c.w / 2, c.y + c.h / 2, "#4dffa6", 18);
+      if (c.kind === "salvo") {
+        p.salvo = CFG.salvo.duration; // (re)start the 3X spread-fire window
+        spawnExplosion(c.x + c.w / 2, c.y + c.h / 2, "#ffd23c", 18);
+      } else {
+        p.hull = Math.min(CFG.player.maxHull, p.hull + CFG.pickup.heal);
+        p.heal = 0.4; // green flash on the ship + hull bar as feedback
+        spawnExplosion(c.x + c.w / 2, c.y + c.h / 2, "#4dffa6", 18);
+      }
       continue;
     }
 
@@ -766,7 +810,10 @@ function render() {
     drawMissiles();
     drawEnemyMissiles();
     drawEnemies();
-    if (state.phase === "playing") drawPlayer();
+    if (state.phase === "playing") {
+      drawPlayer();
+      if (state.player.salvo > 0) drawSalvoBar();
+    }
   }
 
   ctx.restore();
@@ -857,11 +904,18 @@ function drawMissileSprite(m, exhaust, body, glow) {
   ctx.restore();
 }
 
-// A health crate hanging under a parachute: a green canopy with suspension
-// lines down to a boxed health cross. The green palette marks it as the one
-// friendly object on the field, distinct from the red/gold of weapons fire.
+// A crate hanging under a parachute: a canopy with suspension lines down to a
+// boxed emblem. Health crates wear a green cross; the rarer "3X" salvo boost
+// wears a gold emblem — the palette tells the two apart at a glance, both
+// distinct from the red of enemy fire.
+const PICKUP_SKIN = {
+  health: { canopy: "#3ce896", glow: "#4dffa6", box: "#0d2a1e", lines: "rgba(180, 255, 220, 0.45)" },
+  salvo: { canopy: "#ffce4d", glow: "#ffd23c", box: "#2a210d", lines: "rgba(255, 235, 180, 0.45)" },
+};
+
 function drawPickups() {
   for (const c of state.pickups) {
+    const skin = PICKUP_SKIN[c.kind] || PICKUP_SKIN.health;
     const cx = c.x + c.w / 2;
     const top = c.y;
     const chuteW = c.w * 1.9;
@@ -869,7 +923,7 @@ function drawPickups() {
     const chuteY = top - chuteH - 10;
 
     // Suspension lines from the canopy rim to the crate corners.
-    ctx.strokeStyle = "rgba(180, 255, 220, 0.45)";
+    ctx.strokeStyle = skin.lines;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cx - chuteW / 2, chuteY + chuteH);
@@ -881,7 +935,7 @@ function drawPickups() {
     ctx.stroke();
 
     // Canopy — a soft dome with a scalloped lower edge.
-    ctx.fillStyle = "#3ce896";
+    ctx.fillStyle = skin.canopy;
     ctx.globalAlpha = 0.92;
     ctx.beginPath();
     ctx.moveTo(cx - chuteW / 2, chuteY + chuteH);
@@ -892,18 +946,29 @@ function drawPickups() {
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Crate body with a glowing health cross.
-    ctx.fillStyle = "#0d2a1e";
+    // Crate body with a glowing border.
+    ctx.fillStyle = skin.box;
     ctx.fillRect(c.x, c.y, c.w, c.h);
-    ctx.strokeStyle = "#4dffa6";
+    ctx.strokeStyle = skin.glow;
     ctx.lineWidth = 2;
-    ctx.shadowColor = "#4dffa6";
+    ctx.shadowColor = skin.glow;
     ctx.shadowBlur = 8;
     ctx.strokeRect(c.x, c.y, c.w, c.h);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#4dffa6";
-    ctx.fillRect(c.x + c.w * 0.4, c.y + c.h * 0.22, c.w * 0.2, c.h * 0.56);
-    ctx.fillRect(c.x + c.w * 0.2, c.y + c.h * 0.4, c.w * 0.6, c.h * 0.2);
+
+    ctx.fillStyle = skin.glow;
+    if (c.kind === "salvo") {
+      // "3X" emblem so the boost reads exactly as the Director described.
+      ctx.font = "bold 14px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("3X", cx, c.y + c.h / 2 + 1);
+      ctx.textBaseline = "alphabetic";
+    } else {
+      // Health cross.
+      ctx.fillRect(c.x + c.w * 0.4, c.y + c.h * 0.22, c.w * 0.2, c.h * 0.56);
+      ctx.fillRect(c.x + c.w * 0.2, c.y + c.h * 0.4, c.w * 0.6, c.h * 0.2);
+    }
   }
 }
 
@@ -942,8 +1007,10 @@ function drawPlayer() {
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // Hull — white flash when hit, green flash briefly when a crate restores hull.
-  ctx.fillStyle = p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#4dffa6" : "#dfe9ff";
+  // Hull — white flash when hit, green flash briefly when a crate restores hull,
+  // and a gold tint for as long as the 3X salvo boost is active.
+  ctx.fillStyle =
+    p.flash > 0 ? "#ffffff" : p.heal > 0 ? "#4dffa6" : p.salvo > 0 ? "#ffe27a" : "#dfe9ff";
   ctx.beginPath();
   ctx.moveTo(hw, 0); // nose
   ctx.lineTo(-hw, -hh);
@@ -967,6 +1034,22 @@ function drawPlayer() {
   }
 
   ctx.restore();
+}
+
+// A short countdown bar pinned under the ship while the 3X boost is active, so
+// the player can see how much spread-fire time is left at a glance — drawn in
+// world space so it tracks the ship rather than living in the corner HUD.
+function drawSalvoBar() {
+  const p = state.player;
+  const frac = clamp(p.salvo / CFG.salvo.duration, 0, 1);
+  const w = p.w;
+  const h = 4;
+  const x = p.x;
+  const y = p.y + p.h + 8;
+  ctx.fillStyle = "rgba(20, 24, 40, 0.85)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#ffd23c";
+  ctx.fillRect(x, y, w * frac, h);
 }
 
 function drawEnemies() {
@@ -1056,7 +1139,7 @@ function drawReadyScreen() {
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
     { text: "Enemies close from both sides and shoot back — their fire burns friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
-    { text: "Catch parachuting green crates to patch your hull.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
+    { text: "Catch green crates to patch your hull — and gold 3X crates for a burst of spread fire.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);
@@ -1104,5 +1187,6 @@ if (typeof window !== "undefined") {
     angleDelta,
     steerAngle,
     playerBoundsX,
+    salvoOffsets,
   };
 }

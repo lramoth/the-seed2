@@ -118,11 +118,12 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 8
+Generation 9
 
 A free-flight space combat loop where the enemies shoot back, their missiles
 burn friend and foe alike, the player's blaster can overheat, the ship flies
-with momentum, and health crates parachute in to be caught.
+with momentum, and crates parachute in to be caught — health to patch the hull,
+a "3X" boost for a burst of spread fire.
 
 ### The Game
 
@@ -148,9 +149,13 @@ their position: your hull only takes damage from an enemy missile or a ram —
 letting a ship slip off an edge costs you nothing. Each run is a two-front
 problem: face the side that's shooting at you, manage blaster heat, seek it
 clear, bait the crossfire, and dodge the incoming fire while you pivot. At zero hull the run ends.
-Now and then a *health crate parachutes down* from the top of the field — fly
-into it to patch your hull, but you have to *break formation and cross the fire*
-to reach it before it sinks past the ground, so the rescue is its own gamble.
+Now and then a *crate parachutes down* from the top of the field — fly
+into it, but you have to *break formation and cross the fire* to reach it before
+it sinks past the ground, so each one is its own gamble. *Green crates patch your
+hull*; the rarer *gold "3X" crates* grant a few seconds of *spread fire*, where
+every trigger pull launches a fan of homing missiles instead of one, with a
+*countdown bar under your ship* showing the time left — catch one and press the
+advantage before it runs out.
 The world only moves as you move through it — a parallax starfield and rolling
 ground terrain mark your heading. Score is the reason to play again.
 
@@ -159,7 +164,8 @@ ground terrain mark your heading. Score is the reason to play again.
 - Fly: WASD or Arrow Keys (the ship accelerates with momentum and faces the
   direction you fly; it coasts to a stop when you release)
 - Fire: Space (launches seeking missiles in the direction you are facing; the
-  blaster overheats under sustained fire)
+  blaster overheats under sustained fire, and fires a spread while a "3X" boost
+  is active)
 - Launch / Restart: Space (start), R (after a run ends)
 
 ### How to Run
