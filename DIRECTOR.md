@@ -11,6 +11,7 @@ The game should be easy to understand, satisfying to play, and capable of evolvi
 Playtesting suggests (in priority order highest to lowest):
 - Improve the enemy plasma orb tails so that they appear like a light trail and follows the movement of the enemy orb. The tail should not be a dominant feature of the enemy ships.
 - Redesign our ship to look like an alien UAP with bright strobing lights.
+- Reduce hull damage amount when hit by enemy fire.
 - Convert all fonts to Segoe UI or similar variant.
 - Brighten the HUD fonts so they are readable against the dark background.
 - Sound effects are needed for blaster, destroyed enemies, game over, thrusters, powerups, hull reduction, calm and soothing gameplay music, and anything else that makes the gameplay addicting.
