@@ -864,3 +864,73 @@ Future Work Enabled:
 - Convert fonts to sans-serif and brighten the HUD — the deferred Director notes
 - Audio (blaster, enemy fire, kills, thrusters, game-over, music)
 - Tuning orb size / tail length / hue-cycle rate for readability via `CFG`
+
+## Generation 11
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-11-1781673214)
+
+Intent:
+Make enemy fire fairer to read without changing the two-front missile duel.
+Generation 10 gave enemies a strong plasma-orb identity and tails that show
+their travel direction, but their shots could still appear with little warning
+once an orb's hidden cooldown elapsed. The highest-value small mutation is to
+surface that existing timing as a readable threat cue.
+
+Mutation:
+Enemies now visibly telegraph their next shot:
+
+- Added `CFG.enemy.fireWarnTime` and `CFG.enemy.fireFlashTime` so the warning
+  window and post-shot flash are tunable alongside the existing fire cadence.
+- Each enemy carries a short `fireFlash` timer. When `enemyFire` triggers from
+  the existing cooldown path, the timer is set and the cooldown is reset exactly
+  as before; shot timing, missile speed, turn rate, damage, and crossfire logic
+  are unchanged.
+- `drawEnemies` now derives a warning fraction from the remaining fire cooldown
+  when an enemy is fully on-field. During the final warning window the orb draws
+  a pulsing red charge ring and a hot aiming bead toward the player; immediately
+  after firing the bead blooms briefly from `fireFlash`.
+- Ready-screen copy, README, and PROJECT_MAP were updated to describe the firing
+  cue. Run instructions are unchanged: open `index.html` directly, or serve the
+  folder and visit it in a browser.
+
+Rationale:
+This reinforces the accepted lineage instead of adding a new system. The core
+decision remains "which front is about to matter?", but the player now has a
+split-second visual tell before a plasma orb adds another red missile to the
+field. That supports the Director's priorities — clear feedback, satisfying
+combat, playability, and mastery — while preserving the danger: the missile is
+not delayed, weakened, or made less accurate. It simply stops being hidden
+information. The aiming bead also makes the incoming lane easier to read, which
+helps players deliberately juke shots into enemy crossfire.
+
+Tests / Verification:
+- `node --check game.js` passed.
+- Deterministic runtime check with a stubbed canvas passed:
+  - An on-field enemy at fire cooldown 0 fired exactly one enemy missile.
+  - The same shot set `fireFlash` above zero.
+  - A staged enemy at half the warning window produced a warning fraction of
+    exactly 0.5 and `drawEnemies` completed without throwing.
+- Loaded the modified game through a local static server at
+  `http://127.0.0.1:8765/`; launched a run, let enemies spawn and fire, captured
+  a gameplay screenshot, and confirmed the browser console reported no errors.
+
+Effect on Project Direction:
+Improves combat readability by turning an invisible enemy cooldown into an
+in-world plasma charge cue. The game stays simple and immediately playable, but
+the Director can better evaluate whether deaths and dodges feel fair because
+incoming enemy fire now has a readable wind-up.
+
+Future Work Enabled:
+- Tune `fireWarnTime` and `fireFlashTime` against spawn density and missile
+  pressure.
+- Reuse the warning cue for future enemy variants with different attack rhythms.
+- Redesign the ship as an alien UAP with strobing lights — the deferred Director
+  note.
+- Build random small structures on the terrain — the deferred Director note.
+- Convert canvas HUD text to brighter sans-serif styling — the deferred Director
+  note.
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music).

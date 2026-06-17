@@ -1,19 +1,20 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 10
+ * The Seed 2 — Generation 11
  * Free-flight space combat where enemy fire burns friend and foe alike, the
  * ship flies with momentum, and crates parachute in to be caught — health to
  * patch the hull, a "3X" boost for a burst of spread fire. The enemies are
  * bright plasma orbs that flash through vivid colors and stream a comet tail
- * behind them, so each threat's heading reads at a glance against the dark.
+ * behind them, then flare red before firing so each threat's heading and next
+ * shot read at a glance against the dark.
  *
  * The player pilots a ship freely across the field, facing whichever way they
  * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
  * them. The enemies — drifting plasma orbs trailing comet tails — close in from
- * BOTH edges and return fire: each lobs its own
- * seeking missiles at the player, but slower and turning more lazily than the
- * player's, so they seek for real yet can be out-flown and juked. Those enemy
+ * BOTH edges and return fire: each flares red as it charges, then lobs its own
+ * seeking missile at the player, but slower and turning more lazily than the
+ * player's, so it seeks for real yet can be out-flown and juked. Those enemy
  * missiles are now indiscriminate — once armed, an enemy missile that strikes
  * another enemy detonates on it, so the two-front geometry can be turned against
  * them: slip out of the way and an enemy's shot may gut a ship on the far front.
@@ -113,6 +114,11 @@ const CFG = {
     // neither all fire in unison nor snipe the instant they appear.
     fireCooldownMin: 1.6,
     fireCooldownMax: 3.2,
+    // The orb gives a visible charge cue before firing. It does not change the
+    // shot timing; it exposes the cooldown so the player can read which threat
+    // is about to add a missile to the crossfire.
+    fireWarnTime: 0.55,
+    fireFlashTime: 0.12,
     // Plasma-orb look: each enemy flashes through vivid colors at its own rate
     // (degrees/sec around the color wheel), picked from this range so the swarm
     // shimmers out of sync rather than pulsing in unison.
@@ -382,6 +388,7 @@ function spawnEnemy() {
     phase: Math.random() * Math.PI * 2,
     // Time until this ship's next shot (also staggers the very first one).
     fireCooldown: randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax),
+    fireFlash: 0,
     // Plasma-orb color: a random starting hue and its own cycle rate, so every
     // orb flashes through vivid colors independently of its neighbors.
     hue: Math.random() * 360,
@@ -742,6 +749,7 @@ function updateEnemies(dt) {
     const e = state.enemies[i];
     e.x += e.dir * e.speed * dt;
     e.phase += dt * 3;
+    if (e.fireFlash > 0) e.fireFlash = Math.max(0, e.fireFlash - dt);
     e.y = clamp(e.y + Math.sin(e.phase) * e.drift * dt, 0, playBottom() - e.h);
 
     // Slipping off either edge is now harmless — the threat is enemy fire, not
@@ -779,6 +787,7 @@ function updateEnemies(dt) {
     e.fireCooldown -= dt;
     if (e.fireCooldown <= 0 && e.x > 0 && e.x + e.w < CFG.width) {
       enemyFire(e);
+      e.fireFlash = CFG.enemy.fireFlashTime;
       e.fireCooldown = randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax);
     }
   }
@@ -1076,8 +1085,10 @@ function drawSalvoBar() {
 // and stream a comet tail behind them. The tail points opposite the travel
 // direction (with a soft vertical lean from the drift, so it whips as the orb
 // weaves), which makes each threat's heading read at a glance — reinforcing the
-// "which front do I face?" decision. The hitbox is unchanged; the bright core
-// sits on the orb's center and the halo is just glow.
+// "which front do I face?" decision. A red charge ring and aiming bead appear
+// just before the orb fires, exposing the imminent shot without changing the
+// cooldown. The hitbox is unchanged; the bright core sits on the orb's center
+// and the halo is just glow.
 function drawEnemies() {
   const PUFFS = 6;
   for (const e of state.enemies) {
@@ -1085,6 +1096,13 @@ function drawEnemies() {
     const cy = e.y + e.h / 2;
     const r = e.h * 0.5; // bright core radius, ~ the hitbox
     const hue = cycleHue(e.hue, state.time, e.hueRate);
+    const fullyOnField = e.x > 0 && e.x + e.w < CFG.width;
+    const warn = fullyOnField
+      ? clamp(1 - e.fireCooldown / CFG.enemy.fireWarnTime, 0, 1)
+      : 0;
+    const flash = e.fireFlash > 0
+      ? clamp(e.fireFlash / CFG.enemy.fireFlashTime, 0, 1)
+      : 0;
 
     // Unit vector for the tail: behind the orb (-dir), leaning with the drift.
     const tdx = -e.dir;
@@ -1132,6 +1150,40 @@ function drawEnemies() {
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
+
+    if (warn > 0 || flash > 0) {
+      const charge = Math.max(warn, flash);
+      const pulse = 0.65 + Math.sin(state.time * 36) * 0.35;
+      const player = state.player;
+      const ax = player.x + player.w / 2 - cx;
+      const ay = player.y + player.h / 2 - cy;
+      const alen = Math.hypot(ax, ay) || 1;
+      const uxAim = ax / alen;
+      const uyAim = ay / alen;
+      const beadX = cx + uxAim * r * 1.15;
+      const beadY = cy + uyAim * r * 1.15;
+
+      ctx.shadowColor = "#ff4d5e";
+      ctx.shadowBlur = 8 + charge * 14;
+      ctx.strokeStyle = `rgba(255, 77, 94, ${0.2 + charge * 0.6})`;
+      ctx.lineWidth = 1 + charge * 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.2 + charge * 0.45 + pulse * 0.08), 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 210, 60, ${0.15 + charge * 0.45})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(beadX, beadY);
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(255, 238, 190, ${0.35 + charge * 0.55})`;
+      ctx.beginPath();
+      ctx.arc(beadX, beadY, 2.5 + charge * 4 + flash * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
 
     ctx.restore();
   }
@@ -1199,7 +1251,7 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Enemies close from both sides and shoot back — their fire burns friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Enemies close from both sides and flare before firing — their shots burn friend and foe.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
     { text: "Catch green crates to patch your hull — and gold 3X crates for a burst of spread fire.", font: "18px 'Courier New', monospace", color: "#4dffa6", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   Burst fire manages heat", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },

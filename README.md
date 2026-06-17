@@ -118,13 +118,13 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 10
+Generation 11
 
-A free-flight space combat loop where the enemies — bright plasma orbs that
-flash through vivid colors and trail comet tails — shoot back, their missiles
-burn friend and foe alike, the player's blaster can overheat, the ship flies
-with momentum, and crates parachute in to be caught — health to patch the hull,
-a "3X" boost for a burst of spread fire.
+A free-flight space combat loop where the enemies are bright plasma orbs that
+flash through vivid colors, trail comet tails, and flare red before shooting
+back; their missiles burn friend and foe alike, the player's blaster can
+overheat, the ship flies with momentum, and crates parachute in to be caught —
+health to patch the hull, a "3X" boost for a burst of spread fire.
 
 ### The Game
 
@@ -142,16 +142,18 @@ bar fills, the weapon overheats and briefly vents before it can fire again, so
 controlled bursts keep you dangerous longer than holding Space forever. The
 enemies are *bright plasma orbs* that flash through vivid colors and stream a
 *comet tail* opposite the way they fly — so each threat's heading reads at a
-glance. They close in from *both* edges at once and *return fire* — each lobs its own
-seeking missiles at you, but slower and turning more lazily than yours, so you
-can out-fly and juke them. Those enemy missiles are *indiscriminate*: once armed,
+glance. They close in from *both* edges at once and *return fire* — a red charge
+ring and hot aiming bead flare around an orb just before it shoots, then it lobs
+its own seeking missile at you, slower and turning more lazily than yours, so you
+can out-fly and juke it. Those enemy missiles are *indiscriminate*: once armed,
 one that catches another enemy detonates on it, so dodging out of the way can
 feed an enemy's shot into a ship on the far front — *bait that crossfire* and the
 two-front swarm thins itself. That makes the threat your enemies' *weapons*, not
 their position: your hull only takes damage from an enemy missile or a ram —
 letting a ship slip off an edge costs you nothing. Each run is a two-front
-problem: face the side that's shooting at you, manage blaster heat, seek it
-clear, bait the crossfire, and dodge the incoming fire while you pivot. At zero hull the run ends.
+problem: face the side that's charging a shot, manage blaster heat, seek it
+clear, bait the crossfire, and dodge the incoming fire while you pivot. At zero
+hull the run ends.
 Now and then a *crate parachutes down* from the top of the field — fly
 into it, but you have to *break formation and cross the fire* to reach it before
 it sinks past the ground, so each one is its own gamble. *Green crates patch your
