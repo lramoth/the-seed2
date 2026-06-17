@@ -9,15 +9,15 @@ The primary goal is fun gameplay.
 The game should be easy to understand, satisfying to play, and capable of evolving through small mutations over time.
 
 Playtesting suggests (in priority order):
-- Player movement though the space both left and right should be infinite. 
+- Player movement though the space both left and right should be at least 4 screens long and circular. Enemies should spawn 1/2 the distance from the player's ship's location. 
 - Enemies should come from both the left and right sides of the screen.
+- When the player moves left and right both enemies and power ups shift slightly. They should not move differently in relationship to the user's current direction
 - Enemies shouldn't enter and exit at exactly the same height of thte screen. 
-- Allow the space to have occasional health powerups which increase the player's health stat.
-- Enemy missles should be able to kill other enemies.
 - Enemies should be bright diffuse plasma orbs (appear commet like) with plasma tails which are vibrant and flash different colors.
+- Redesign our ship to look like an alien UAP with bright strobing lights.
+- Shooting boosts that allow the player to shoot multiple missles at a time for a limited time can drop from parachutes like health does. Example: 3X. Show a progress bar below the user's ship to show how long the shooter boost exists.
 - Convert all fonts to Sans serif fonts.
 - Brighten the HUD fonts so they are readable against the dark background.
-- Powerups should be available, which the player runs into, that allow the player to shoot multiple missles at a time for a limited time. Show a progrss bar below the user's ship to show how long the powerup exists.
 - Powerups are boxes which float from above with parachutes that float down slowly so I can run into for the new powerup.
 - Sound effects are needed for blaster, destroyed enemies, game over, thrusters, gameplay music
 
