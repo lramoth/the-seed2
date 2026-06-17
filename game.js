@@ -1,18 +1,19 @@
 "use strict";
 
 /*
- * The Seed 2 — Generation 3
- * A free-flight space combat core loop with enemy-seeking missiles.
+ * The Seed 2 — Generation 4
+ * Free-flight space combat where the enemies shoot back.
  *
  * The player pilots a ship freely across the field, facing whichever way they
- * fly and firing in that direction. Shots are now homing missiles: they launch
- * along the way you face and curve toward the nearest enemy *ahead* of them.
- * Their turn rate is limited and they only seek targets in front, so facing
- * still decides which front you defend — the missiles just forgive an enemy's
- * vertical drift instead of punishing a near miss. Enemy ships close in from
- * BOTH edges, so the fight stays a two-front problem: pick a side, clear it,
- * and pivot before anything slips past. The world only moves when the player
- * moves — a parallax starfield and rolling ground terrain make that
+ * fly and firing homing missiles that curve toward the nearest enemy *ahead* of
+ * them. Enemy ships close in from BOTH edges and now return fire: each lobs its
+ * own seeking missiles at the player, but slower and turning more lazily than
+ * the player's, so they seek for real yet can be out-flown and juked. That
+ * moves the threat onto enemy *weapons* — the hull only takes damage from an
+ * enemy missile or a ram, never from letting a ship slip off an edge. The fight
+ * stays a two-front problem: pick the side that is shooting at you, seek it
+ * clear, and dodge the incoming fire while you pivot. The world only moves when
+ * the player moves — a parallax starfield and rolling ground terrain make that
  * self-directed flight legible. Survive as the pressure ramps up. Score is the
  * reason to play again.
  *
@@ -40,6 +41,7 @@ const CFG = {
     maxHull: 100,
   },
 
+  // The player's weapon: fast, tight-turning homing missiles.
   missile: {
     w: 16,
     h: 6,
@@ -49,14 +51,30 @@ const CFG = {
     life: 2.4, // seconds before a missile that found no target burns out
   },
 
+  // The enemies' weapon: deliberately worse than the player's. Slower and
+  // turning roughly half as fast, so its seek is real but easy to out-fly — the
+  // "less accurate" return fire the Director asked for.
+  enemyMissile: {
+    w: 14,
+    h: 6,
+    speed: 300,
+    turnRate: Math.PI * 0.6,
+    life: 2.2,
+    damage: 14, // hull lost when an enemy missile connects
+  },
+
   enemy: {
     w: 36,
     h: 28,
     minSpeed: 130,
     maxSpeed: 230,
-    breachDamage: 12, // hull lost when an enemy slips past either edge
     collideDamage: 34, // hull lost when an enemy rams the player
     score: 100,
+    // Enemies return fire on a per-ship cooldown (seconds). The first shot is
+    // also delayed by a value picked from this range, so freshly spawned ships
+    // neither all fire in unison nor snipe the instant they appear.
+    fireCooldownMin: 1.6,
+    fireCooldownMax: 3.2,
   },
 
   spawn: {
@@ -194,6 +212,7 @@ function newState() {
       muzzle: 0, // muzzle flash timer
     },
     missiles: [],
+    enemyMissiles: [],
     enemies: [],
     particles: [],
     stars: makeStars(),
@@ -253,6 +272,8 @@ function spawnEnemy() {
     // Gentle vertical drift makes enemies feel alive and harder to line up.
     drift: randRange(-40, 40),
     phase: Math.random() * Math.PI * 2,
+    // Time until this ship's next shot (also staggers the very first one).
+    fireCooldown: randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax),
   });
 }
 
@@ -289,6 +310,7 @@ function update(dt) {
     updateSpawning(dt);
     updateMissiles(dt);
     updateEnemies(dt);
+    updateEnemyMissiles(dt);
   }
 
   // The world only moves because the player moved through it.
@@ -373,6 +395,25 @@ function fire() {
   p.muzzle = 0.06;
 }
 
+// An enemy lobs a seeking missile from its center toward the player's current
+// position. It launches already pointed at the player; the lazy turn rate in
+// updateEnemyMissiles is what makes the seek beatable.
+function enemyFire(e) {
+  const ex = e.x + e.w / 2;
+  const ey = e.y + e.h / 2;
+  const p = state.player;
+  const angle = Math.atan2(p.y + p.h / 2 - ey, p.x + p.w / 2 - ex);
+  state.enemyMissiles.push({
+    x: ex - CFG.enemyMissile.w / 2,
+    y: ey - CFG.enemyMissile.h / 2,
+    w: CFG.enemyMissile.w,
+    h: CFG.enemyMissile.h,
+    angle,
+    speed: CFG.enemyMissile.speed,
+    life: CFG.enemyMissile.life,
+  });
+}
+
 function updateSpawning(dt) {
   state.spawnTimer -= dt;
   if (state.spawnTimer <= 0) {
@@ -430,6 +471,36 @@ function updateMissiles(dt) {
   }
 }
 
+// Enemy missiles always re-aim at the player, but at a low turn rate (set in
+// CFG.enemyMissile) so they carve wide arcs the player can juke instead of
+// snapping on. They connect for hull damage, then retire on lifetime or by
+// leaving any edge.
+function updateEnemyMissiles(dt) {
+  const p = state.player;
+  const tx = p.x + p.w / 2;
+  const ty = p.y + p.h / 2;
+  for (let i = state.enemyMissiles.length - 1; i >= 0; i--) {
+    const m = state.enemyMissiles[i];
+    m.life -= dt;
+
+    const desired = Math.atan2(ty - (m.y + m.h / 2), tx - (m.x + m.w / 2));
+    m.angle = steerAngle(m.angle, desired, CFG.enemyMissile.turnRate * dt);
+
+    m.x += Math.cos(m.angle) * m.speed * dt;
+    m.y += Math.sin(m.angle) * m.speed * dt;
+
+    if (rectsOverlap(m, p)) {
+      state.enemyMissiles.splice(i, 1);
+      damagePlayer(CFG.enemyMissile.damage, false);
+      continue;
+    }
+
+    if (m.life <= 0 || offscreen(m, CFG.width, CFG.height)) {
+      state.enemyMissiles.splice(i, 1);
+    }
+  }
+}
+
 function updateEnemies(dt) {
   const p = state.player;
   for (let i = state.enemies.length - 1; i >= 0; i--) {
@@ -438,10 +509,10 @@ function updateEnemies(dt) {
     e.phase += dt * 3;
     e.y = clamp(e.y + Math.sin(e.phase) * e.drift * dt, 0, playBottom() - e.h);
 
-    // Enemy slipped past either edge — a breach.
+    // Slipping off either edge is now harmless — the threat is enemy fire, not
+    // position, so an uncleared ship simply leaves the field.
     if (offscreenX(e, CFG.width)) {
       state.enemies.splice(i, 1);
-      damagePlayer(CFG.enemy.breachDamage, false);
       continue;
     }
 
@@ -466,6 +537,14 @@ function updateEnemies(dt) {
       state.enemies.splice(i, 1);
       spawnExplosion(e.x + e.w / 2, e.y + e.h / 2, "#ffd23c", 14);
       state.score += CFG.enemy.score;
+      continue;
+    }
+
+    // Still alive and fully on the field — return fire on this ship's cooldown.
+    e.fireCooldown -= dt;
+    if (e.fireCooldown <= 0 && e.x > 0 && e.x + e.w < CFG.width) {
+      enemyFire(e);
+      e.fireCooldown = randRange(CFG.enemy.fireCooldownMin, CFG.enemy.fireCooldownMax);
     }
   }
 }
@@ -513,6 +592,7 @@ function render() {
 
   if (state.phase !== "ready") {
     drawMissiles();
+    drawEnemyMissiles();
     drawEnemies();
     if (state.phase === "playing") drawPlayer();
   }
@@ -572,34 +652,48 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+// Shared dart sprite for both the player's and the enemies' missiles, rotated
+// to its heading with a trailing exhaust plume so its curve reads clearly. Only
+// the palette differs: the player's missiles glow gold, the enemies' burn red,
+// so incoming fire is easy to tell from your own at a glance.
+function drawMissileSprite(m, exhaust, body, glow) {
+  ctx.save();
+  ctx.translate(m.x + m.w / 2, m.y + m.h / 2);
+  ctx.rotate(m.angle); // body and exhaust point the way the missile flies
+
+  // Exhaust plume trailing behind the nose sells motion and heading.
+  ctx.fillStyle = exhaust;
+  ctx.beginPath();
+  ctx.moveTo(-m.w * 1.6, 0);
+  ctx.lineTo(-m.w * 0.5, -m.h * 0.5);
+  ctx.lineTo(-m.w * 0.5, m.h * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Glowing missile body — a pointed dart aimed along its heading.
+  ctx.fillStyle = body;
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(m.w / 2, 0); // nose
+  ctx.lineTo(-m.w / 2, -m.h / 2);
+  ctx.lineTo(-m.w / 2, m.h / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
 function drawMissiles() {
   for (const m of state.missiles) {
-    ctx.save();
-    ctx.translate(m.x + m.w / 2, m.y + m.h / 2);
-    ctx.rotate(m.angle); // body and exhaust point the way the missile flies
+    drawMissileSprite(m, "rgba(255, 150, 60, 0.55)", "#fff27a", "#ffae3c");
+  }
+}
 
-    // Exhaust plume trailing behind the nose sells motion and heading.
-    ctx.fillStyle = "rgba(255, 150, 60, 0.55)";
-    ctx.beginPath();
-    ctx.moveTo(-m.w * 1.6, 0);
-    ctx.lineTo(-m.w * 0.5, -m.h * 0.5);
-    ctx.lineTo(-m.w * 0.5, m.h * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Glowing missile body — a pointed dart aimed along its heading.
-    ctx.fillStyle = "#fff27a";
-    ctx.shadowColor = "#ffae3c";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(m.w / 2, 0); // nose
-    ctx.lineTo(-m.w / 2, -m.h / 2);
-    ctx.lineTo(-m.w / 2, m.h / 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.restore();
+function drawEnemyMissiles() {
+  for (const m of state.enemyMissiles) {
+    drawMissileSprite(m, "rgba(255, 70, 70, 0.5)", "#ff7a8f", "#ff3b3b");
   }
 }
 
@@ -721,7 +815,7 @@ function drawReadyScreen() {
   ctx.fillRect(0, 0, CFG.width, CFG.height);
   drawCenteredText([
     { text: "SPACE COMBAT", font: "44px 'Courier New', monospace", color: "#36d7ff", gap: 50 },
-    { text: "Enemies close from both sides. Face a side; your missiles seek it.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
+    { text: "Enemies close from both sides and shoot back — seek a front clear, dodge the rest.", font: "18px 'Courier New', monospace", color: "#c8d4f0", gap: 34 },
     { text: "Fly WASD / Arrows   ·   Fire seeking missiles SPACE   ·   You face where you fly", font: "16px 'Courier New', monospace", color: "#5e6b8c", gap: 44 },
     { text: "PRESS SPACE TO LAUNCH", font: "22px 'Courier New', monospace", color: "#fff27a", gap: 0 },
   ]);

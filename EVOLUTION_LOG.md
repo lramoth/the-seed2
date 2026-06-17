@@ -241,3 +241,102 @@ Future Work Enabled:
 - Movement feel: edge buffer and momentum
 - Audio (blaster, kills, thrusters, game-over, music)
 - Tuning missile turn rate / speed / fire rate against spawn pacing via `CFG`
+
+## Generation 4
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-16
+
+Commit / PR: (branch gen-4-1781654882)
+
+Intent:
+Make the enemies a threat in their own right and fix the damage model the
+Director flagged first. DIRECTOR.md's opening playtesting note is "No hull
+damage should occur unless the user collides with an enemy or is hit by an enemy
+weapon," yet through Generation 3 an enemy slipping off either edge (a "breach")
+drained the hull — pure positional punishment. The very next Director note asks
+for enemies that "shoot seeking missiles at the player but less accurately," and
+Generation 3's own log lists "enemies that shoot back" as its first enabled
+future-work item now that a projectile steering primitive exists. These are the
+same subsystem — *how enemies threaten the player* — so the highest-value
+mutation is to relocate the threat from position to weapons.
+
+Mutation:
+Enemies now return fire, and the damage model becomes weapon-and-collision only
+— one coherent change to what hurts the player, reusing the existing steering
+helpers rather than adding a new subsystem:
+
+- Each enemy carries a randomized `fireCooldown`. Once it is fully on-field (not
+  still entering an edge) the cooldown elapses and `enemyFire` launches a seeking
+  missile from the enemy's center, aimed at the player's current position. The
+  initial cooldown is randomized too, so freshly spawned ships neither fire in
+  unison nor snipe the instant they appear.
+- A new `enemyMissiles` array is updated by `updateEnemyMissiles`, which re-aims
+  each missile at the player every frame via the existing `steerAngle` /
+  `angleDelta` helpers — but at a deliberately lower turn rate and speed than the
+  player's (`CFG.enemyMissile`: turn ≈ half, speed 300 vs 640). The seek is real
+  but carves wide arcs the player can out-fly and juke — the "less accurate"
+  return fire the Director asked for. Missiles retire on lifetime or by leaving
+  any edge (`offscreen`).
+- Breaches are now harmless: an enemy leaving either edge (`offscreenX`) is
+  simply removed with no hull cost. The hull only loses health to an enemy
+  missile (`CFG.enemyMissile.damage`) or a ram (`CFG.enemy.collideDamage`), which
+  is exactly the Director's stated rule. `CFG.enemy.breachDamage` is removed.
+- Rendering: the player's missile dart was extracted into a shared
+  `drawMissileSprite`; player missiles glow gold, enemy missiles burn red, so
+  incoming fire reads at a glance against your own. Ready-screen copy, README,
+  and PROJECT_MAP updated. Plasma-orb visuals, power-ups, momentum/edge-buffer,
+  and audio were left for separate generations to keep this a single idea.
+
+Rationale:
+This implements two named Director notes at once while *reinforcing* the
+accepted lineage instead of fighting it. It keeps Generation 2/3's core decision
+— "which front do I face?" — and sharpens it: you now face the side that is
+actively shooting at you, and a wrong facing means eating missiles rather than
+merely conceding a harmless breach. Removing breach damage is a change to
+accepted Gen-2 behavior, justified because (a) it is the Director's first
+explicit playtesting request, and (b) adding enemy fire supplies the replacement
+threat, so the run stays tense without the positional punishment the Director
+rejected. The enemy weapon is strictly worse than the player's, preserving the
+guided-missile weapon identity established in Generation 3. All new values live
+in `CFG`.
+
+Tests / Verification:
+- Deterministic in-browser simulation (single synchronous eval, so the live rAF
+  loop could not interleave), all passed:
+  - An on-field enemy with cooldown 0 fired exactly one missile, aimed into the
+    correct quadrant toward the player (player placed below-right → angle in
+    (0, PI/2)), at speed 300.
+  - An enemy missile overlapping the player dealt exactly `CFG.enemyMissile.damage`
+    (hull 100 → 86) and was consumed.
+  - An enemy slipping off the right edge left the hull at 100 and despawned —
+    breaches are harmless.
+  - Regression: a player missile overlapping an enemy still destroyed it
+    (+100 score) and was consumed.
+  - Fire gate: an enemy still entering from the left edge (x < 0) held fire,
+    while a fully on-field enemy fired.
+  - Config sanity: `enemyMissile.turnRate < missile.turnRate`,
+    `enemyMissile.speed < missile.speed`, and `enemy.breachDamage` is gone.
+- `node --check game.js` passed; no browser console errors during play.
+- Visual confirmation: a staged frame showed the player firing gold seeking
+  missiles while four red enemy missiles homed in from multiple angles and the
+  hull bar reflected incoming damage — the two missile types clearly
+  distinguishable.
+- Run instructions unchanged: open `index.html`, or `python3 -m http.server`
+  and visit the page.
+
+Effect on Project Direction:
+Resolves the damage-model conflict at the top of DIRECTOR.md and turns the fight
+into a genuine duel of weapons: enemies are now dangerous because they shoot, not
+because they exist near an edge. The `enemyMissiles` array and the per-ship fire
+cooldown are reusable substrate for telegraphed or varied enemy attacks, and the
+shared `drawMissileSprite` makes new projectile types cheap to render.
+
+Future Work Enabled:
+- Plasma-orb enemy visuals with vibrant flashing tails — the deferred Director note
+- Power-ups (e.g. multi-missile salvos) and a powerup duration bar
+- Movement feel: edge buffer and momentum
+- Audio (blaster, enemy fire, kills, thrusters, game-over, music)
+- Enemy variety: telegraphed shots, burst fire, or aimed-vs-lead firing
+- Tuning enemy fire rate / missile speed / turn rate against spawn pacing via `CFG`

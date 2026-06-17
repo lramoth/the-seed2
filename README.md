@@ -118,9 +118,9 @@ The Director's evolving understanding of the game is preserved in:
 
 ## Current State
 
-Generation 3
+Generation 4
 
-A playable free-flight space combat core loop with enemy-seeking missiles.
+A free-flight space combat loop where the enemies shoot back.
 
 ### The Game
 
@@ -129,12 +129,15 @@ and firing launches *enemy-seeking missiles* along that heading — each curves
 toward the nearest enemy ahead of it. A missile can only lock onto targets in
 front of it and can't whip around, so *which way you face still decides which
 front you defend*; the homing just forgives an enemy's vertical drift instead of
-punishing a near miss. Enemy ships close in from *both* edges at once, making
-each run a two-front problem: pick a side, clear it, and pivot before anything
-slips past. Let an enemy slip off either edge or ram you and your hull takes
-damage. At zero hull the run ends. The world only moves as you move through it —
-a parallax starfield and rolling ground terrain mark your heading. Score is the
-reason to play again.
+punishing a near miss. Enemy ships close in from *both* edges at once and now
+*return fire* — each lobs its own seeking missiles at you, but slower and turning
+more lazily than yours, so you can out-fly and juke them. That makes the threat
+your enemies' *weapons*, not their position: your hull only takes damage from an
+enemy missile or a ram — letting a ship slip off an edge now costs you nothing.
+Each run is a two-front problem: face the side that's shooting at you, seek it
+clear, and dodge the incoming fire while you pivot. At zero hull the run ends.
+The world only moves as you move through it — a parallax starfield and rolling
+ground terrain mark your heading. Score is the reason to play again.
 
 ### Controls
 

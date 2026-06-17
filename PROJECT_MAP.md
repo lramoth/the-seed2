@@ -17,8 +17,10 @@ Describe what currently exists, not what may exist in the future.
 A browser-based, free-flight space combat game. The player pilots a ship across
 the field and faces the direction they fly; firing launches enemy-seeking
 missiles that curve toward the nearest enemy ahead of them, while threats close
-in from both edges. It runs as a single static page with no build step, no
-dependencies, and no server requirement — opening `index.html` is enough to play.
+in from both edges and fire their own (deliberately less accurate) seeking
+missiles back. The hull only takes damage from an enemy missile or a ram. It
+runs as a single static page with no build step, no dependencies, and no server
+requirement — opening `index.html` is enough to play.
 
 ## Files
 
@@ -44,16 +46,22 @@ The file is organized top-to-bottom into clear sections:
 - **Game state** — A single `state` object rebuilt by `newState()` /
   `startGame()`. Holds the phase, score, the player (including `facing`),
   per-frame `scrollDX` / accumulated `groundScroll`, and entity arrays
-  (`missiles`, `enemies`, `particles`, `stars`).
+  (`missiles`, `enemyMissiles`, `enemies`, `particles`, `stars`).
 - **Spawning / effects** — Enemies spawn from either edge (each with a travel
-  `dir`) on a difficulty ramp, plus particle explosions.
+  `dir` and a randomized fire cooldown) on a difficulty ramp, plus particle
+  explosions.
 - **Update** — Fixed responsibilities per entity type, driven by delta time so
   motion is frame-rate independent. The player's actual horizontal travel
   (`scrollDX`) drives the background parallax — the world only moves when the
-  player does. Missiles carry a heading angle: each frame they steer toward the
-  nearest enemy *ahead* of them (`nearestSeekTarget`) at a capped turn rate, then
-  advance along that heading, and are retired by `offscreen` or a short lifetime.
-  Enemies travel a signed direction; a ship leaving either edge is `offscreenX`.
+  player does. Player missiles carry a heading angle: each frame they steer
+  toward the nearest enemy *ahead* of them (`nearestSeekTarget`) at a capped turn
+  rate, then advance along that heading, and are retired by `offscreen` or a
+  short lifetime. Enemies travel a signed direction and, once fully on-field,
+  return fire on a per-ship cooldown (`enemyFire`); a ship leaving either edge
+  (`offscreenX`) is simply removed — breaches are harmless. Enemy missiles re-aim
+  at the player every frame at a lower turn rate (`updateEnemyMissiles`, reusing
+  `steerAngle`), so they seek but stay dodgeable. The hull only loses health to
+  an enemy missile or a ram.
 - **Render** — Draws the movement-driven parallax starfield, rolling ground
   terrain, entities, particle effects, HUD, and the ready / game-over overlays.
   Player and enemy ships are drawn in a mirrored local frame so the nose,
